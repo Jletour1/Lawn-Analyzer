@@ -187,6 +187,9 @@ export const performRealAnalysis = async (submission: LocalUserSubmission): Prom
     if (submission.pet_traffic) {
       userPrompt += `\nNote: This area receives heavy pet traffic`;
     }
+    if (submission.has_dog) {
+      userPrompt += `\nNote: The homeowner has a dog - consider dog urine spots as a potential cause, especially for circular brown patches with dark green rings`;
+    }
 
     // Add smart recommendations to prompt
     if (smartRecommendations.length > 0) {

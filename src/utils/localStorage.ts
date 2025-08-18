@@ -15,6 +15,7 @@ export interface LocalUserSubmission {
   season?: string;
   recent_treatments?: string;
   pet_traffic: boolean;
+  has_dog: boolean;
   analysis_result?: any;
   flagged_for_review: boolean;
   review_reason?: string;

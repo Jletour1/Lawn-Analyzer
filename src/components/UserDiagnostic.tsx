@@ -18,7 +18,8 @@ const UserDiagnostic: React.FC = () => {
     location: '',
     season: 'spring',
     recentTreatments: '',
-    petTraffic: false
+    petTraffic: false,
+    hasDog: false
   });
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -62,6 +63,7 @@ const UserDiagnostic: React.FC = () => {
         season: formData.season,
         recent_treatments: formData.recentTreatments,
         pet_traffic: formData.petTraffic,
+        has_dog: formData.hasDog,
         flagged_for_review: false,
         admin_reviewed: false,
         created_at: new Date().toISOString()
@@ -107,7 +109,8 @@ const UserDiagnostic: React.FC = () => {
       location: '',
       season: 'spring',
       recentTreatments: '',
-      petTraffic: false
+      petTraffic: false,
+      hasDog: false
     });
     setAnalysisResult(null);
     setError('');
@@ -351,6 +354,17 @@ const UserDiagnostic: React.FC = () => {
                 </label>
               </div>
             </div>
+              <div>
+                <label className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.hasDog}
+                    onChange={(e) => setFormData(prev => ({ ...prev, hasDog: e.target.checked }))}
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Do you have a dog?</span>
+                </label>
+              </div>
 
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
               <button

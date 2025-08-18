@@ -99,6 +99,39 @@ const mockAnalysisPatterns = [
     }
   },
   {
+    keywords: ['dog', 'urine', 'pee', 'pet', 'circular', 'round', 'spots'],
+    result: {
+      confidence: 0.91,
+      rootCause: "Primary diagnosis: Dog urine spots. The circular brown patches with darker green outer rings are characteristic of dog urine damage. High nitrogen content in urine burns grass in the center while fertilizing the edges, creating the distinctive ring pattern.",
+      solutions: [
+        "Water affected areas immediately after dog urination to dilute the urine",
+        "Train dog to use a designated area of the yard",
+        "Apply gypsum to help neutralize soil pH in affected areas",
+        "Overseed damaged spots with grass seed after soil treatment"
+      ],
+      products: [
+        {
+          name: "Espoma Organic Lawn Food",
+          category: "Soil Amendment",
+          affiliateLink: "https://amazon.com/dp/B002Y0A95C",
+          price: "$19.99"
+        },
+        {
+          name: "Jonathan Green Grass Seed",
+          category: "Grass Seed",
+          affiliateLink: "https://amazon.com/dp/B01N0QQ7XH",
+          price: "$24.99"
+        }
+      ],
+      healthScore: 6,
+      urgency: 'medium' as const,
+      similarCases: 34,
+      difficulty: 'intermediate' as const,
+      costEstimate: '$25-50',
+      timeline: '2-4 weeks'
+    }
+  },
+  {
     keywords: ['grub', 'white', 'larvae', 'peels', 'carpet', 'soft'],
     result: {
       confidence: 0.94,
@@ -178,7 +211,8 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
         {
           grassType: submission.grass_type,
           location: submission.location,
-          season: submission.season
+          season: submission.season,
+          hasDog: submission.has_dog
         }
       );
 
@@ -208,8 +242,24 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
       // Find matching pattern based on keywords
       let selectedPattern = mockAnalysisPatterns[0]; // default
 
+      // If user has a dog and description suggests circular patches, consider dog urine
+      if (submission.has_dog && (description.includes('brown') || description.includes('circular') || description.includes('round') || description.includes('patch'))) {
+        // Use dog urine pattern but adjust confidence based on other factors
+        const dogUrinePattern = mockAnalysisPatterns.find(p => p.keywords.some(k => k.includes('urine')));
+        if (dogUrinePattern) {
+          selectedPattern = {
+            ...dogUrinePattern,
+            result: {
+              ...dogUrinePattern.result,
+              rootCause: `Potential dog urine spots detected. ${dogUrinePattern.result.rootCause} Consider this alongside other possible causes like fungal diseases, as symptoms can be similar.`,
+              confidence: Math.min(dogUrinePattern.result.confidence * 1.2, 0.95)
+            }
+          };
+        }
+      }
+
       // If we have smart recommendations, use the best one
-      if (smartRecommendations.length > 0) {
+      else if (smartRecommendations.length > 0) {
         const bestRecommendation = smartRecommendations[0];
         selectedPattern = {
           keywords: ['smart', 'learning'],
