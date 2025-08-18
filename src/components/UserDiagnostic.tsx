@@ -140,6 +140,32 @@ const UserDiagnostic: React.FC = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Analysis Progress - Show at top when analyzing */}
+        {step === 'analyzing' && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center mb-8">
+            <div className="flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mx-auto mb-6">
+              <Brain className="w-8 h-8 text-white animate-pulse" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Analyzing Your Lawn</h2>
+            <p className="text-gray-600 mb-8">Our AI is examining your photo and processing your information...</p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-center space-x-3">
+                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+                <span className="text-gray-700">Processing image features</span>
+              </div>
+              <div className="flex items-center justify-center space-x-3">
+                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+                <span className="text-gray-700">Identifying problems</span>
+              </div>
+              <div className="flex items-center justify-center space-x-3">
+                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
+                <span className="text-gray-700">Generating recommendations</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {step === 'upload' && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
@@ -340,31 +366,6 @@ const UserDiagnostic: React.FC = () => {
                 <Send className="w-5 h-5" />
                 <span>Analyze My Lawn</span>
               </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'analyzing' && (
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mx-auto mb-6">
-              <Brain className="w-8 h-8 text-white animate-pulse" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Analyzing Your Lawn</h2>
-            <p className="text-gray-600 mb-8">Our AI is examining your photo and processing your information...</p>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-center space-x-3">
-                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-gray-700">Processing image features</span>
-              </div>
-              <div className="flex items-center justify-center space-x-3">
-                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-gray-700">Identifying problems</span>
-              </div>
-              <div className="flex items-center justify-center space-x-3">
-                <Loader className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-gray-700">Generating recommendations</span>
-              </div>
             </div>
           </div>
         )}
