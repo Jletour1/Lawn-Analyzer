@@ -1,4 +1,6 @@
 // Local storage utilities for development
+import { CategorySuggestion } from '../types';
+
 export interface LocalUserSubmission {
   id: string;
   user_email: string;
@@ -25,6 +27,7 @@ export interface LocalAnalysisData {
   submissions: LocalUserSubmission[];
   reddit_analyses: any[];
   analyzed_posts: any[];
+  category_suggestions?: CategorySuggestion[];
   settings: {
     openai_api_key?: string;
     reddit_client_id?: string;
@@ -48,6 +51,7 @@ export const getLocalData = (): LocalAnalysisData => {
     submissions: [],
     reddit_analyses: [],
     analyzed_posts: [],
+    category_suggestions: [],
     settings: {}
   };
 };

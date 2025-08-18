@@ -157,3 +157,29 @@ export interface LearningInsight {
   discovered_at: string;
   validated: boolean;
 }
+
+export interface CategorySuggestion {
+  id: string;
+  suggested_category: string;
+  suggested_subcategory?: string;
+  description: string;
+  reasoning: string;
+  confidence: number;
+  supporting_cases: string[];
+  visual_indicators: string[];
+  suggested_solutions: string[];
+  suggested_products: string[];
+  created_at: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+}
+
+export interface CategoryApproval {
+  suggestion_id: string;
+  approved: boolean;
+  admin_notes: string;
+  reviewed_by: string;
+  reviewed_at: string;
+}

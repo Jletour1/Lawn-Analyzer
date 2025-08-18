@@ -1,6 +1,8 @@
 import { config } from './config';
 import { LocalUserSubmission } from './localStorage';
 import { extractImageFeatures, findSimilarCases, buildEnhancedPrompt, SimilarCase } from './imageSimilarity';
+import { CategorySuggestion } from '../types';
+import { getLocalData, saveLocalData } from './localStorage';
 
 export interface RealAnalysisResult {
   confidence: number;
@@ -39,6 +41,7 @@ export interface RealAnalysisResult {
     averageSuccessRate: number;
     commonTreatments: string[];
   };
+  categorySuggestions?: CategorySuggestion[];
 }
 
 const LAWN_DIAGNOSTIC_SYSTEM_PROMPT = `You are a professional lawn-care diagnostician. Analyze an image of a lawn and any user notes to identify likely issues and recommend next steps.
@@ -52,6 +55,8 @@ Identify the primary diagnosis and up to 3 differential diagnoses, explaining yo
 Provide Immediate Actions (what to do this week) and Long-Term Prevention (ongoing).
 
 Ask for missing data only if it materially affects confidence (e.g., watering schedule, mowing height, soil type/pH test, pet traffic, chemicals applied, recent weather extremes).
+
+If you identify a problem that doesn't fit existing categories well, suggest new categories or subcategories that would better classify this type of issue.
 
 Output a JSON object with the following structure:
 {
@@ -87,7 +92,19 @@ Output a JSON object with the following structure:
       "edges": "sharp|fuzzy|gradual",
       "pattern": "random|clustered|uniform|spreading"
     }
-  }
+  },
+  "categorySuggestions": [
+    {
+      "suggestedCategory": "New category name",
+      "suggestedSubcategory": "Optional subcategory",
+      "description": "Description of the new category",
+      "reasoning": "Why this new category is needed",
+      "confidence": 0.0-1.0,
+      "visualIndicators": ["indicator1", "indicator2"],
+      "suggestedSolutions": ["solution1", "solution2"],
+      "suggestedProducts": ["product1", "product2"]
+    }
+  ]
 }
 
 Be thorough, professional, and prioritize lawn health and safety.`;
@@ -249,6 +266,35 @@ export const performRealAnalysis = async (submission: LocalUserSubmission): Prom
       similarCases,
       databaseInsights
     };
+
+    // Process category suggestions if any
+    if (result.categorySuggestions && result.categorySuggestions.length > 0) {
+      const categorySuggestions = result.categorySuggestions.map((suggestion: any) => ({
+        id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        suggested_category: suggestion.suggestedCategory || '',
+        suggested_subcategory: suggestion.suggestedSubcategory || '',
+        description: suggestion.description || '',
+        reasoning: suggestion.reasoning || '',
+        confidence: suggestion.confidence || 0.5,
+        supporting_cases: [submission.id],
+        visual_indicators: suggestion.visualIndicators || [],
+        suggested_solutions: suggestion.suggestedSolutions || [],
+        suggested_products: suggestion.suggestedProducts || [],
+        created_at: new Date().toISOString(),
+        status: 'pending' as const,
+      }));
+
+      // Save category suggestions to localStorage for admin review
+      const localData = getLocalData();
+      if (!localData.category_suggestions) {
+        localData.category_suggestions = [];
+      }
+      localData.category_suggestions.push(...categorySuggestions);
+      saveLocalData(localData);
+
+      finalResult.categorySuggestions = categorySuggestions;
+      console.log('Saved', categorySuggestions.length, 'category suggestions for admin review');
+    }
     
     console.log('Real analysis completed successfully');
     return finalResult;

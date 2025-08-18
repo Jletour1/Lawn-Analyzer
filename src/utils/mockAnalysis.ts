@@ -1,6 +1,8 @@
 // Mock AI analysis for local development
 import { LocalUserSubmission } from './localStorage';
 import { extractImageFeatures, findSimilarCases, SimilarCase } from './imageSimilarity';
+import { CategorySuggestion } from '../types';
+import { getLocalData, saveLocalData } from './localStorage';
 
 export interface MockAnalysisResult {
   confidence: number;
@@ -24,6 +26,7 @@ export interface MockAnalysisResult {
     averageSuccessRate: number;
     commonTreatments: string[];
   };
+  categorySuggestions?: CategorySuggestion[];
 }
 
 // Mock analysis patterns based on common lawn problems
@@ -221,11 +224,87 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
 
       result.confidence = Math.min(result.confidence, 0.95); // Cap at 95%
 
+
+    // Occasionally suggest new categories for testing (10% chance)
+    let categorySuggestions: CategorySuggestion[] = [];
+    if (Math.random() < 0.1) {
+      const newCategorySuggestions = generateMockCategorySuggestions(submission);
+      if (newCategorySuggestions.length > 0) {
+        // Save to localStorage for admin review
+        const localData = getLocalData();
+        if (!localData.category_suggestions) {
+          localData.category_suggestions = [];
+        }
+        localData.category_suggestions.push(...newCategorySuggestions);
+        saveLocalData(localData);
+        categorySuggestions = newCategorySuggestions;
+      }
+    }
       resolve({
         ...result,
         similarCases,
         databaseInsights
-      });
+      databaseInsights,
+      categorySuggestions
     }, 2000 + Math.random() * 1000); // 2-3 second delay
   });
+};
+
+const generateMockCategorySuggestions = (submission: LocalUserSubmission): CategorySuggestion[] => {
+  const description = submission.problem_description.toLowerCase();
+  const suggestions: CategorySuggestion[] = [];
+
+  // Generate suggestions based on unique patterns
+  if (description.includes('purple') || description.includes('violet')) {
+    suggestions.push({
+      id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      suggested_category: 'Purple Leaf Spot Disease',
+      suggested_subcategory: 'Fungal Discoloration',
+      description: 'A fungal disease causing distinctive purple or violet discoloration on grass blades, often confused with other leaf spot diseases.',
+      reasoning: 'The purple coloration mentioned is not typical of standard brown patch or dollar spot diseases. This appears to be a distinct fungal issue requiring its own category.',
+      confidence: 0.78,
+      supporting_cases: [submission.id],
+      visual_indicators: ['Purple or violet spots on grass blades', 'Irregular patch shapes', 'Leaf blade discoloration'],
+      suggested_solutions: ['Apply copper-based fungicide', 'Improve air circulation', 'Reduce leaf wetness duration'],
+      suggested_products: ['Copper fungicide spray', 'Organic neem oil treatment'],
+      created_at: new Date().toISOString(),
+      status: 'pending'
+    });
+  }
+
+  if (description.includes('metallic') || description.includes('shiny') || description.includes('reflective')) {
+    suggestions.push({
+      id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      suggested_category: 'Metallic Sheen Disorder',
+      suggested_subcategory: 'Environmental Stress',
+      description: 'An unusual condition where grass develops a metallic or shiny appearance, often due to environmental stress or chemical exposure.',
+      reasoning: 'The metallic or shiny appearance described is not covered by existing categories and may indicate a unique environmental stress response.',
+      confidence: 0.65,
+      supporting_cases: [submission.id],
+      visual_indicators: ['Metallic or shiny grass appearance', 'Unusual light reflection', 'Possible chemical residue'],
+      suggested_solutions: ['Test soil for chemical contamination', 'Flush area with water', 'Monitor for recovery'],
+      suggested_products: ['Soil test kit', 'Activated charcoal soil amendment'],
+      created_at: new Date().toISOString(),
+      status: 'pending'
+    });
+  }
+
+  if (description.includes('spiral') || description.includes('twisted') || description.includes('curled')) {
+    suggestions.push({
+      id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      suggested_category: 'Grass Blade Curl Syndrome',
+      suggested_subcategory: 'Growth Abnormality',
+      description: 'A condition where grass blades exhibit abnormal curling, twisting, or spiral growth patterns, potentially due to herbicide damage or genetic factors.',
+      reasoning: 'The spiral or twisted growth pattern is distinct from normal pest damage or disease symptoms and warrants its own diagnostic category.',
+      confidence: 0.72,
+      supporting_cases: [submission.id],
+      visual_indicators: ['Twisted or curled grass blades', 'Spiral growth patterns', 'Abnormal blade development'],
+      suggested_solutions: ['Check for herbicide drift', 'Test soil pH', 'Consider grass variety replacement'],
+      suggested_products: ['pH test strips', 'Soil conditioner', 'Grass seed for reseeding'],
+      created_at: new Date().toISOString(),
+      status: 'pending'
+    });
+  }
+
+  return suggestions;
 };

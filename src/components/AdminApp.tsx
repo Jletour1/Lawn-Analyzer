@@ -6,6 +6,7 @@ import DataCollection from './DataCollection';
 import AIAnalysis from './AIAnalysis';
 import RootCauseManager from './RootCauseManager';
 import SmartAnalysisEngine from './SmartAnalysisEngine';
+import CategorySuggestionManager from './CategorySuggestionManager';
 import Settings from './Settings';
 
 // Error Boundary Component
@@ -179,6 +180,9 @@ const AdminApp: React.FC = () => {
       case 'root-causes':
           console.log('AdminApp: Rendering RootCauseManager');
         return <RootCauseManager />;
+      case 'category-suggestions':
+          console.log('AdminApp: Rendering CategorySuggestionManager');
+        return <CategorySuggestionManager />;
       case 'smart-engine':
           console.log('AdminApp: Rendering SmartAnalysisEngine');
         return <SmartAnalysisEngine />;

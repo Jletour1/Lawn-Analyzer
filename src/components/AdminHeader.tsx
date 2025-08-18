@@ -1,5 +1,5 @@
 import React from 'react';
-import { Leaf, Database, Brain, Users, Settings, BarChart3, LogOut } from 'lucide-react';
+import { Leaf, Database, Brain, Users, Settings, BarChart3, LogOut, Plus } from 'lucide-react';
 
 interface AdminHeaderProps {
   activeTab: string;
@@ -13,6 +13,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange, onLog
     { id: 'collection', label: 'Data Collection', icon: Leaf },
     { id: 'analysis', label: 'AI Analysis', icon: Brain },
     { id: 'root-causes', label: 'Root Causes', icon: Database },
+    { id: 'category-suggestions', label: 'Category Suggestions', icon: Plus },
     { id: 'smart-engine', label: 'Smart Engine', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
