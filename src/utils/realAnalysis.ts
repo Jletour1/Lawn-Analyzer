@@ -43,6 +43,7 @@ export interface RealAnalysisResult {
     commonTreatments: string[];
   };
   categorySuggestions?: CategorySuggestion[];
+  treatmentSchedule?: any;
 }
 
 const LAWN_DIAGNOSTIC_SYSTEM_PROMPT = `You are a professional lawn-care diagnostician. Analyze an image of a lawn and any user notes to identify likely issues and recommend next steps.
@@ -352,6 +353,18 @@ Please consider these learned patterns in your analysis, but prioritize what you
 
       finalResult.categorySuggestions = categorySuggestions;
       console.log('Saved', categorySuggestions.length, 'category suggestions for admin review');
+    }
+    
+    // Check if this root cause has a treatment schedule
+    const localData = getLocalData();
+    const matchingRootCause = localData.root_causes?.find(rc => 
+      rc.name.toLowerCase().includes(finalResult.rootCause.toLowerCase().split(' ')[0]) ||
+      finalResult.rootCause.toLowerCase().includes(rc.name.toLowerCase())
+    );
+    
+    if (matchingRootCause?.treatment_schedule) {
+      finalResult.treatmentSchedule = matchingRootCause.treatment_schedule;
+      console.log('Found matching treatment schedule for root cause');
     }
     
     console.log('Real analysis completed successfully');

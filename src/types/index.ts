@@ -128,12 +128,56 @@ export interface RootCause {
   standard_solutions: string[];
   standard_recommendations: string[];
   products: RootCauseProduct[];
+  treatment_schedule?: TreatmentSchedule;
   confidence_threshold: number;
   success_rate: number;
   case_count: number;
   seasonal_factors: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface TreatmentSchedule {
+  id: string;
+  root_cause_id: string;
+  title: string;
+  description: string;
+  total_duration: string; // e.g., "4-6 weeks"
+  difficulty_level: 'beginner' | 'intermediate' | 'expert';
+  estimated_cost: string; // e.g., "$50-100"
+  steps: TreatmentStep[];
+  maintenance_schedule?: MaintenanceStep[];
+  success_indicators: string[];
+  warning_signs: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TreatmentStep {
+  id: string;
+  step_number: number;
+  title: string;
+  description: string;
+  timing: string; // e.g., "Week 1", "Day 1-3", "Immediately"
+  duration: string; // e.g., "30 minutes", "1 hour"
+  difficulty: 'easy' | 'moderate' | 'difficult';
+  required_products: string[];
+  optional_products: string[];
+  tools_needed: string[];
+  weather_conditions?: string; // e.g., "Avoid windy days", "Apply when dry"
+  detailed_instructions: string[];
+  tips: string[];
+  warning?: string;
+}
+
+export interface MaintenanceStep {
+  id: string;
+  title: string;
+  description: string;
+  frequency: string; // e.g., "Weekly", "Monthly", "Seasonally"
+  timing: string; // e.g., "Spring", "Every 2 weeks"
+  products_needed: string[];
+  instructions: string[];
 }
 
 export interface RootCauseProduct {

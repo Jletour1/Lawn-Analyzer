@@ -28,6 +28,7 @@ export interface MockAnalysisResult {
     commonTreatments: string[];
   };
   categorySuggestions?: CategorySuggestion[];
+  treatmentSchedule?: any;
 }
 
 // Mock analysis patterns based on common lawn problems
@@ -353,12 +354,26 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
         ...result,
         similarCases,
         databaseInsights,
-        categorySuggestions
+        categorySuggestions,
+        treatmentSchedule: getMatchingTreatmentSchedule(result.rootCause)
       });
     }, 2000 + Math.random() * 1000); // 2-3 second delay
   });
 };
 
+const getMatchingTreatmentSchedule = (rootCause: string) => {
+  try {
+    const localData = JSON.parse(localStorage.getItem('lawn_analyzer_data') || '{}');
+    const matchingRootCause = localData.root_causes?.find((rc: any) => 
+      rc.name.toLowerCase().includes(rootCause.toLowerCase().split(' ')[0]) ||
+      rootCause.toLowerCase().includes(rc.name.toLowerCase())
+    );
+    
+    return matchingRootCause?.treatment_schedule || null;
+  } catch {
+    return null;
+  }
+};
 const generateMockCategorySuggestions = (submission: LocalUserSubmission): CategorySuggestion[] => {
   const description = submission.problem_description.toLowerCase();
   const suggestions: CategorySuggestion[] = [];
