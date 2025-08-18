@@ -148,6 +148,31 @@ export interface RootCauseProduct {
   product_type: 'treatment' | 'prevention' | 'tool' | 'fertilizer';
 }
 
+export interface TreatmentScheduleStep {
+  id: string;
+  step_number: number;
+  title: string;
+  description: string;
+  timing: string; // e.g., "Week 1", "Day 3-5", "Monthly"
+  season?: string; // e.g., "Spring", "Summer", "Fall", "Winter"
+  products_needed?: string[];
+  notes?: string;
+  is_critical: boolean;
+}
+
+export interface TreatmentSchedule {
+  id: string;
+  root_cause_id: string;
+  name: string;
+  description: string;
+  total_duration: string; // e.g., "4-6 weeks", "Full season"
+  difficulty_level: 'beginner' | 'intermediate' | 'expert';
+  steps: TreatmentScheduleStep[];
+  success_indicators: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LearningInsight {
   id: string;
   pattern_type: 'visual' | 'seasonal' | 'treatment_success' | 'user_feedback';
