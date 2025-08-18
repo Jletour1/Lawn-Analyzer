@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, Upload, Send, Loader, CheckCircle, AlertTriangle, Leaf, Brain, Target, Clock } from 'lucide-react';
+import { Camera, Upload, Send, Loader, CheckCircle, AlertTriangle, Leaf, Brain, Target, Clock, Calendar } from 'lucide-react';
 import { addUserSubmission, LocalUserSubmission } from '../utils/localStorage';
 import { performRealAnalysis } from '../utils/realAnalysis';
 import { performMockAnalysis } from '../utils/mockAnalysis';
@@ -353,7 +353,6 @@ const UserDiagnostic: React.FC = () => {
                   <span className="text-sm font-medium text-gray-700">This area receives heavy pet traffic</span>
                 </label>
               </div>
-            </div>
               <div>
                 <label className="flex items-center space-x-3">
                   <input
@@ -365,6 +364,7 @@ const UserDiagnostic: React.FC = () => {
                   <span className="text-sm font-medium text-gray-700">Do you have a dog?</span>
                 </label>
               </div>
+            </div>
 
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
               <button
@@ -474,6 +474,170 @@ const UserDiagnostic: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Treatment Schedule */}
+            {analysisResult.treatmentSchedule && (
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <div className="flex items-center space-x-3 mb-6">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Step-by-Step Treatment Plan</h3>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                  <h4 className="font-medium text-blue-900 mb-2">{analysisResult.treatmentSchedule.title}</h4>
+                  <p className="text-blue-800 text-sm mb-3">{analysisResult.treatmentSchedule.description}</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <span className="text-blue-800">Duration: {analysisResult.treatmentSchedule.total_duration}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Target className="w-4 h-4 text-blue-600" />
+                      <span className="text-blue-800">Cost: {analysisResult.treatmentSchedule.estimated_cost}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-blue-600" />
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        analysisResult.treatmentSchedule.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
+                        analysisResult.treatmentSchedule.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {analysisResult.treatmentSchedule.difficulty_level}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Treatment Steps */}
+                <div className="space-y-4 mb-6">
+                  <h5 className="font-medium text-gray-900">Treatment Steps:</h5>
+                  {analysisResult.treatmentSchedule.steps.map((step: any, index: number) => (
+                    <div key={step.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white text-sm font-medium rounded-full flex-shrink-0">
+                          {step.step_number}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <h6 className="font-medium text-gray-900">{step.title}</h6>
+                            <div className="flex items-center space-x-3 text-sm text-gray-600">
+                              <span>{step.timing}</span>
+                              <span>•</span>
+                              <span>{step.duration}</span>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                step.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                                step.difficulty === 'moderate' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {step.difficulty}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <p className="text-gray-700 text-sm mb-3">{step.description}</p>
+                          
+                          {step.detailed_instructions.length > 0 && (
+                            <div className="mb-3">
+                              <span className="text-sm font-medium text-gray-900">Instructions:</span>
+                              <ul className="text-sm text-gray-700 ml-4 mt-1 space-y-1">
+                                {step.detailed_instructions.map((instruction: string, idx: number) => (
+                                  <li key={idx} className="list-disc">{instruction}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {step.required_products.length > 0 && (
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">Required Products:</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {step.required_products.map((product: string, idx: number) => (
+                                    <span key={idx} className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                                      {product}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {step.tools_needed.length > 0 && (
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">Tools Needed:</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {step.tools_needed.map((tool: string, idx: number) => (
+                                    <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                      {tool}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {step.weather_conditions && (
+                            <div className="mt-2 p-2 bg-yellow-50 rounded-lg">
+                              <div className="flex items-center space-x-2">
+                                <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                <span className="text-sm text-yellow-800">Weather Note: {step.weather_conditions}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {step.tips.length > 0 && (
+                            <div className="mt-2">
+                              <span className="text-sm font-medium text-gray-900">Tips:</span>
+                              <ul className="text-sm text-gray-600 ml-4 mt-1">
+                                {step.tips.map((tip: string, idx: number) => (
+                                  <li key={idx} className="list-disc">{tip}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Success Indicators */}
+                {analysisResult.treatmentSchedule.success_indicators.length > 0 && (
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <h5 className="font-medium text-green-900 mb-3 flex items-center space-x-2">
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Signs of Success</span>
+                    </h5>
+                    <ul className="space-y-2">
+                      {analysisResult.treatmentSchedule.success_indicators.map((indicator: string, idx: number) => (
+                        <li key={idx} className="flex items-center space-x-2 text-green-800">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-sm">{indicator}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Warning Signs */}
+                {analysisResult.treatmentSchedule.warning_signs.length > 0 && (
+                  <div className="bg-red-50 rounded-lg p-4 mt-4">
+                    <h5 className="font-medium text-red-900 mb-3 flex items-center space-x-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span>Warning Signs</span>
+                    </h5>
+                    <ul className="space-y-2">
+                      {analysisResult.treatmentSchedule.warning_signs.map((warning: string, idx: number) => (
+                        <li key={idx} className="flex items-center space-x-2 text-red-800">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="text-sm">{warning}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Similar Cases */}
             {analysisResult.similarCases && analysisResult.similarCases.length > 0 && (
