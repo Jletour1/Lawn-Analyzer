@@ -231,6 +231,25 @@ const RootCauseManager: React.FC = () => {
     success_rate: 0.6,
   });
 
+  const [scheduleFormData, setScheduleFormData] = useState<Partial<TreatmentSchedule>>({
+    name: '',
+    description: '',
+    total_duration: '',
+    difficulty_level: 'intermediate',
+    steps: [],
+    success_indicators: ['']
+  });
+
+  const [currentStep, setCurrentStep] = useState<Partial<TreatmentScheduleStep>>({
+    title: '',
+    description: '',
+    timing: '',
+    season: '',
+    products_needed: [''],
+    notes: '',
+    is_critical: false
+  });
+
   /* ---------------------- Load ---------------------- */
   useEffect(() => {
     const data = getLocalData();
