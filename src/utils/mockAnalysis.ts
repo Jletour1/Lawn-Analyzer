@@ -243,9 +243,9 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
       resolve({
         ...result,
         similarCases,
-        databaseInsights
-      databaseInsights,
-      categorySuggestions
+        databaseInsights,
+        categorySuggestions
+      });
     }, 2000 + Math.random() * 1000); // 2-3 second delay
   });
 };
