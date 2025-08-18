@@ -32,6 +32,7 @@ export interface LocalAnalysisData {
   category_suggestions?: CategorySuggestion[];
   learning_patterns?: LearningPattern[];
   root_causes?: any[];
+  treatment_schedules?: TreatmentSchedule[];
   settings: {
     openai_api_key?: string;
     reddit_client_id?: string;

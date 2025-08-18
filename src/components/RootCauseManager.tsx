@@ -471,7 +471,7 @@ const RootCauseManager: React.FC = () => {
     if (!confirm("Delete this root cause? This action cannot be undone.")) return;
     setManaged((prev) => {
       const next = prev.filter((rc) => rc.id !== id);
-      persistManaged(next); // persist immediately so it "sticks"
+      persistManaged(next); // persist immediately so it “sticks”
       return next;
     });
   };
@@ -627,7 +627,7 @@ const RootCauseManager: React.FC = () => {
     const next = [rc, ...managed];
     setManaged(next);
 
-    // Make sure it's visible immediately
+    // Make sure it’s visible immediately
     setSearch("");
     setActiveCategory("all");
 
@@ -1256,6 +1256,393 @@ const RootCauseManager: React.FC = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Schedule Form Modal */}
+      {showScheduleForm && selectedRootCause && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Create Treatment Schedule for {selectedRootCause.name}
+                </h3>
+                <button
+                  onClick={() => setShowScheduleForm(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Basic Schedule Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Schedule Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={scheduleFormData.name}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., Standard Brown Patch Treatment"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total Duration
+                    </label>
+                    <input
+                      type="text"
+                      value={scheduleFormData.total_duration}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, total_duration: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., 4-6 weeks"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={scheduleFormData.description}
+                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Describe the overall treatment approach..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Difficulty Level
+                  </label>
+                  <select
+                    value={scheduleFormData.difficulty_level}
+                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, difficulty_level: e.target.value as any }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </div>
+
+                {/* Success Indicators */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Success Indicators
+                    </label>
+                    <button
+                      onClick={addSuccessIndicator}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      + Add Indicator
+                    </button>
+                  </div>
+                  {scheduleFormData.success_indicators?.map((indicator, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={indicator}
+                        onChange={(e) => updateSuccessIndicator(index, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., New green growth visible"
+                      />
+                      {(scheduleFormData.success_indicators?.length || 0) > 1 && (
+                        <button
+                          onClick={() => removeSuccessIndicator(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Steps Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Treatment Steps</h4>
+                  
+                  {/* Existing Steps */}
+                  {scheduleFormData.steps && scheduleFormData.steps.length > 0 && (
+                    <div className="space-y-3 mb-6">
+                      {scheduleFormData.steps.map((step, index) => (
+                        <div key={step.id} className="p-4 border border-gray-200 rounded-lg">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-sm font-medium rounded-full">
+                                  {step.step_number}
+                                </span>
+                                <h5 className="font-medium text-gray-900">{step.title}</h5>
+                                {step.is_critical && (
+                                  <AlertCircle className="w-4 h-4 text-red-500" />
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{step.description}</p>
+                              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                <span>Timing: {step.timing}</span>
+                                {step.season && <span>Season: {step.season}</span>}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveStep(step.id)}
+                              className="text-red-600 hover:text-red-800 ml-2"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add New Step Form */}
+                  <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                    <h5 className="font-medium text-gray-900 mb-3">Add New Step</h5>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Step Title *
+                          </label>
+                          <input
+                            type="text"
+                            value={currentStep.title}
+                            onChange={(e) => setCurrentStep(prev => ({ ...prev, title: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="e.g., Apply Fungicide"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Timing
+                          </label>
+                          <input
+                            type="text"
+                            value={currentStep.timing}
+                            onChange={(e) => setCurrentStep(prev => ({ ...prev, timing: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="e.g., Week 1, Day 3-5"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description *
+                        </label>
+                        <textarea
+                          value={currentStep.description}
+                          onChange={(e) => setCurrentStep(prev => ({ ...prev, description: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={2}
+                          placeholder="Detailed instructions for this step..."
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Season (Optional)
+                          </label>
+                          <select
+                            value={currentStep.season}
+                            onChange={(e) => setCurrentStep(prev => ({ ...prev, season: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Any Season</option>
+                            <option value="Spring">Spring</option>
+                            <option value="Summer">Summer</option>
+                            <option value="Fall">Fall</option>
+                            <option value="Winter">Winter</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={currentStep.is_critical}
+                              onChange={(e) => setCurrentStep(prev => ({ ...prev, is_critical: e.target.checked }))}
+                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Critical Step</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Products Needed */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Products Needed
+                          </label>
+                          <button
+                            onClick={addProductToStep}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            + Add Product
+                          </button>
+                        </div>
+                        {currentStep.products_needed?.map((product, index) => (
+                          <div key={index} className="flex items-center space-x-2 mb-2">
+                            <input
+                              type="text"
+                              value={product}
+                              onChange={(e) => updateStepProduct(index, e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="e.g., Propiconazole fungicide"
+                            />
+                            {(currentStep.products_needed?.length || 0) > 1 && (
+                              <button
+                                onClick={() => removeStepProduct(index)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Notes (Optional)
+                        </label>
+                        <textarea
+                          value={currentStep.notes}
+                          onChange={(e) => setCurrentStep(prev => ({ ...prev, notes: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={2}
+                          placeholder="Additional notes or warnings..."
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleAddStep}
+                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Step</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                <button
+                  onClick={() => setShowScheduleForm(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSchedule}
+                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  <span>Save Schedule</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Detail Modal */}
+      {selectedSchedule && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">{selectedSchedule.name}</h3>
+                <button
+                  onClick={() => setSelectedSchedule(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <p className="text-gray-600 mb-4">{selectedSchedule.description}</p>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{selectedSchedule.total_duration}</span>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(selectedSchedule.difficulty_level)}`}>
+                      {selectedSchedule.difficulty_level}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Treatment Steps</h4>
+                  <div className="space-y-4">
+                    {selectedSchedule.steps.map((step, index) => (
+                      <div key={step.id} className="flex items-start space-x-4">
+                        <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white text-sm font-medium rounded-full flex-shrink-0">
+                          {step.step_number}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h5 className="font-medium text-gray-900">{step.title}</h5>
+                            {step.is_critical && (
+                              <AlertCircle className="w-4 h-4 text-red-500" />
+                            )}
+                          </div>
+                          <p className="text-gray-600 mb-2">{step.description}</p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
+                            <span>Timing: {step.timing}</span>
+                            {step.season && <span>Season: {step.season}</span>}
+                          </div>
+                          {step.products_needed && step.products_needed.length > 0 && (
+                            <div className="mb-2">
+                              <span className="text-sm font-medium text-gray-700">Products needed: </span>
+                              <span className="text-sm text-gray-600">{step.products_needed.join(', ')}</span>
+                            </div>
+                          )}
+                          {step.notes && (
+                            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                              <strong>Note:</strong> {step.notes}
+                            </div>
+                          )}
+                        </div>
+                        {index < selectedSchedule.steps.length - 1 && (
+                          <ArrowRight className="w-4 h-4 text-gray-400 mt-2" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedSchedule.success_indicators.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Success Indicators</h4>
+                    <ul className="space-y-2">
+                      {selectedSchedule.success_indicators.map((indicator, index) => (
+                        <li key={index} className="flex items-center space-x-2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <span className="text-gray-700">{indicator}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
