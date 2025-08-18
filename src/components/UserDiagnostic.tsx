@@ -353,7 +353,6 @@ const UserDiagnostic: React.FC = () => {
                   <span className="text-sm font-medium text-gray-700">This area receives heavy pet traffic</span>
                 </label>
               </div>
-            </div>
               <div>
                 <label className="flex items-center space-x-3">
                   <input
@@ -365,6 +364,7 @@ const UserDiagnostic: React.FC = () => {
                   <span className="text-sm font-medium text-gray-700">Do you have a dog?</span>
                 </label>
               </div>
+            </div>
 
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
               <button
@@ -474,6 +474,99 @@ const UserDiagnostic: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Treatment Schedules */}
+            {analysisResult.treatmentSchedules && analysisResult.treatmentSchedules.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Step-by-Step Treatment Plan</h3>
+                {analysisResult.treatmentSchedules.map((schedule: any, scheduleIndex: number) => (
+                  <div key={scheduleIndex} className="mb-8 last:mb-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">{schedule.name}</h4>
+                        <p className="text-gray-600 mt-1">{schedule.description}</p>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          schedule.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
+                          schedule.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {schedule.difficulty_level}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          Duration: {schedule.total_duration}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Treatment Steps */}
+                    <div className="space-y-4">
+                      {schedule.steps.map((step: any, stepIndex: number) => (
+                        <div key={stepIndex} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                            step.is_critical ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                          }`}>
+                            {step.step_number}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h5 className="font-semibold text-gray-900">{step.title}</h5>
+                              {step.is_critical && (
+                                <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
+                                  Critical Step
+                                </span>
+                              )}
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                {step.timing}
+                              </span>
+                              {step.season && (
+                                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                  {step.season}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-700 mb-3">{step.description}</p>
+                            
+                            {/* Products Needed */}
+                            {step.products_needed && step.products_needed.length > 0 && (
+                              <div className="mb-2">
+                                <span className="text-sm font-medium text-gray-600">Products needed: </span>
+                                <span className="text-sm text-gray-700">{step.products_needed.join(', ')}</span>
+                              </div>
+                            )}
+                            
+                            {/* Notes */}
+                            {step.notes && (
+                              <div className="mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-400">
+                                <p className="text-sm text-yellow-800">
+                                  <strong>Note:</strong> {step.notes}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Success Indicators */}
+                    {schedule.success_indicators && schedule.success_indicators.length > 0 && (
+                      <div className="mt-6 p-4 bg-green-50 rounded-lg">
+                        <h5 className="font-semibold text-green-900 mb-3">Signs of Success</h5>
+                        <ul className="space-y-1">
+                          {schedule.success_indicators.map((indicator: string, idx: number) => (
+                            <li key={idx} className="flex items-center space-x-2 text-green-800">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-sm">{indicator}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Similar Cases */}
             {analysisResult.similarCases && analysisResult.similarCases.length > 0 && (
