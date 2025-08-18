@@ -43,6 +43,7 @@ export interface RealAnalysisResult {
     commonTreatments: string[];
   };
   categorySuggestions?: CategorySuggestion[];
+  treatmentSchedules?: any[];
 }
 
 const LAWN_DIAGNOSTIC_SYSTEM_PROMPT = `You are a professional lawn-care diagnostician. Analyze an image of a lawn and any user notes to identify likely issues and recommend next steps.
@@ -353,6 +354,13 @@ Please consider these learned patterns in your analysis, but prioritize what you
       finalResult.categorySuggestions = categorySuggestions;
       console.log('Saved', categorySuggestions.length, 'category suggestions for admin review');
     }
+
+    // Check for treatment schedules based on root cause
+    const treatmentSchedules = findMatchingTreatmentSchedules(finalResult.rootCause);
+    if (treatmentSchedules.length > 0) {
+      finalResult.treatmentSchedules = treatmentSchedules;
+      console.log('Found', treatmentSchedules.length, 'treatment schedules for this root cause');
+    }
     
     console.log('Real analysis completed successfully');
     return finalResult;
@@ -365,5 +373,43 @@ Please consider these learned patterns in your analysis, but prioritize what you
       name: error.name
     });
     throw error;
+  }
+};
+
+// Helper function to find matching treatment schedules
+const findMatchingTreatmentSchedules = (rootCause: string): any[] => {
+  try {
+    const localData = getLocalData();
+    const rootCauses = localData.root_causes || [];
+    const treatmentSchedules = localData.treatment_schedules || [];
+    
+    // Find root cause that matches the AI diagnosis
+    const matchingRootCause = rootCauses.find((rc: any) => {
+      const rcName = rc.name.toLowerCase();
+      const rcDescription = rc.description.toLowerCase();
+      const diagnosisLower = rootCause.toLowerCase();
+      
+      // Check if diagnosis contains root cause name or key terms
+      return diagnosisLower.includes(rcName) || 
+             rcName.includes(diagnosisLower.split(' ')[0]) ||
+             rc.visual_indicators.some((indicator: string) => 
+               diagnosisLower.includes(indicator.toLowerCase())
+             );
+    });
+    
+    if (matchingRootCause) {
+      // Find schedules for this root cause
+      const schedules = treatmentSchedules.filter((schedule: any) => 
+        schedule.root_cause_id === matchingRootCause.id
+      );
+      
+      console.log('Found matching root cause:', matchingRootCause.name, 'with', schedules.length, 'schedules');
+      return schedules;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error finding treatment schedules:', error);
+    return [];
   }
 };

@@ -197,6 +197,14 @@ const mockAnalysisPatterns = [
       timeline: '6-8 weeks'
     }
   }
+
+      // Check for treatment schedules based on root cause
+      const treatmentSchedules = findMatchingTreatmentSchedules(result.rootCause);
+      if (treatmentSchedules.length > 0) {
+        result.treatmentSchedules = treatmentSchedules;
+        console.log('Mock analysis found', treatmentSchedules.length, 'treatment schedules');
+      }
+
 ];
 
 export const performMockAnalysis = (submission: LocalUserSubmission): Promise<MockAnalysisResult> => {
@@ -416,4 +424,42 @@ const generateMockCategorySuggestions = (submission: LocalUserSubmission): Categ
   }
 
   return suggestions;
+};
+
+// Helper function to find matching treatment schedules (same as in realAnalysis)
+const findMatchingTreatmentSchedules = (rootCause: string): any[] => {
+  try {
+    const localData = getLocalData();
+    const rootCauses = localData.root_causes || [];
+    const treatmentSchedules = localData.treatment_schedules || [];
+    
+    // Find root cause that matches the AI diagnosis
+    const matchingRootCause = rootCauses.find((rc: any) => {
+      const rcName = rc.name.toLowerCase();
+      const rcDescription = rc.description.toLowerCase();
+      const diagnosisLower = rootCause.toLowerCase();
+      
+      // Check if diagnosis contains root cause name or key terms
+      return diagnosisLower.includes(rcName) || 
+             rcName.includes(diagnosisLower.split(' ')[0]) ||
+             rc.visual_indicators.some((indicator: string) => 
+               diagnosisLower.includes(indicator.toLowerCase())
+             );
+    });
+    
+    if (matchingRootCause) {
+      // Find schedules for this root cause
+      const schedules = treatmentSchedules.filter((schedule: any) => 
+        schedule.root_cause_id === matchingRootCause.id
+      );
+      
+      console.log('Found matching root cause:', matchingRootCause.name, 'with', schedules.length, 'schedules');
+      return schedules;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error finding treatment schedules:', error);
+    return [];
+  }
 };

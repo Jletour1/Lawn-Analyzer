@@ -24,6 +24,8 @@ import {
   Image as ImageIcon,
   User,
   MessageSquare,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
 
 /* =========================================================================
@@ -207,6 +209,19 @@ const normalizeCategory = (raw: any): RootCauseCategory => {
   return "other";
 };
 
+const getDifficultyColor = (difficulty: string) => {
+  switch (difficulty) {
+    case 'easy':
+      return 'bg-green-100 text-green-800';
+    case 'medium':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'hard':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
 /* =========================================================================
    Component
    ========================================================================= */
@@ -215,6 +230,9 @@ const RootCauseManager: React.FC = () => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<RootCauseCategory | "all">("all");
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>('overview');
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
 
   // raw data for building Sources section
   const [analyses, setAnalyses] = useState<any[]>([]);
@@ -282,6 +300,11 @@ const RootCauseManager: React.FC = () => {
     for (const rc of managed) counts[normalizeCategory(rc.category)]++;
     return counts;
   }, [managed]);
+
+  const getSchedulesForRootCause = (rootCauseId: string) => {
+    // Mock function - replace with actual implementation
+    return [];
+  };
 
   /* ---------------------- Sync from AI ---------------------- */
   const syncFromAI = () => {
@@ -471,7 +494,7 @@ const RootCauseManager: React.FC = () => {
     if (!confirm("Delete this root cause? This action cannot be undone.")) return;
     setManaged((prev) => {
       const next = prev.filter((rc) => rc.id !== id);
-      persistManaged(next); // persist immediately so it “sticks”
+      persistManaged(next); // persist immediately so it "sticks"
       return next;
     });
   };
@@ -627,7 +650,7 @@ const RootCauseManager: React.FC = () => {
     const next = [rc, ...managed];
     setManaged(next);
 
-    // Make sure it’s visible immediately
+    // Make sure it's visible immediately
     setSearch("");
     setActiveCategory("all");
 
@@ -651,7 +674,7 @@ const RootCauseManager: React.FC = () => {
               Curate AI-discovered problems, add your products & affiliate links, and keep everything in sync.
             </p>
           </div>
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={syncFromAI}
               className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
@@ -801,344 +824,446 @@ const RootCauseManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="p-6 space-y-6">
-                {/* Row: category/sub/threshold/success */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="text-xs text-gray-600">Category</label>
-                    <select
-                      value={safeCat}
-                      onChange={(e) => updateRC(rc.id, { category: e.target.value as RootCauseCategory })}
-                      className="w-full px-3 py-2 border rounded-lg"
-                    >
-                      {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => (
-                        <option key={cat} value={cat}>
-                          {CATEGORY_CONFIG[cat].label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Subcategory</label>
-                    <input
-                      value={rc.subcategory || ""}
-                      onChange={(e) => updateRC(rc.id, { subcategory: e.target.value })}
-                      placeholder="e.g., brown_patch_disease"
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Confidence threshold</label>
-                    <input
-                      type="number"
-                      step="0.05"
-                      min={0}
-                      max={1}
-                      value={typeof rc.confidence_threshold === "number" ? rc.confidence_threshold : 0.7}
-                      onChange={(e) =>
-                        updateRC(rc.id, { confidence_threshold: Math.max(0, Math.min(1, Number(e.target.value))) })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Success rate</label>
-                    <input
-                      type="number"
-                      step="0.05"
-                      min={0}
-                      max={1}
-                      value={typeof rc.success_rate === "number" ? rc.success_rate : 0.6}
-                      onChange={(e) =>
-                        updateRC(rc.id, { success_rate: Math.max(0, Math.min(1, Number(e.target.value))) })
-                      }
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
-                </div>
+              {/* Tabs */}
+              <div className="flex space-x-1 mb-6">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'overview'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('schedule')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'schedule'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
+                  Treatment Schedule
+                </button>
+              </div>
 
-                {/* Description */}
-                <div>
-                  <label className="text-xs text-gray-600">Description</label>
-                  <textarea
-                    value={rc.description || ""}
-                    onChange={(e) => updateRC(rc.id, { description: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 border rounded-lg"
-                    placeholder="Explain what this root cause is and when it appears."
-                  />
-                </div>
-
-                {/* Sources (Reddit & User) */}
-                <div className="p-4 rounded-lg border bg-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Link2 className="w-4 h-4 text-blue-600" />
-                    <h4 className="text-sm font-semibold text-gray-900">
-                      Sources (Reddit & User){cases.length ? ` – ${cases.length}` : ""}
-                    </h4>
+              {activeTab === 'overview' && (
+                {/* Body */}
+                <div className="p-6 space-y-6">
+                  {/* Row: category/sub/threshold/success */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-xs text-gray-600">Category</label>
+                      <select
+                        value={safeCat}
+                        onChange={(e) => updateRC(rc.id, { category: e.target.value as RootCauseCategory })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      >
+                        {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => (
+                          <option key={cat} value={cat}>
+                            {CATEGORY_CONFIG[cat].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Subcategory</label>
+                      <input
+                        value={rc.subcategory || ""}
+                        onChange={(e) => updateRC(rc.id, { subcategory: e.target.value })}
+                        placeholder="e.g., brown_patch_disease"
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Confidence threshold</label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min={0}
+                        max={1}
+                        value={typeof rc.confidence_threshold === "number" ? rc.confidence_threshold : 0.7}
+                        onChange={(e) =>
+                          updateRC(rc.id, { confidence_threshold: Math.max(0, Math.min(1, Number(e.target.value))) })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Success rate</label>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min={0}
+                        max={1}
+                        value={typeof rc.success_rate === "number" ? rc.success_rate : 0.6}
+                        onChange={(e) =>
+                          updateRC(rc.id, { success_rate: Math.max(0, Math.min(1, Number(e.target.value))) })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
                   </div>
-                  {cases.length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      No matching sources found yet. After AI Analysis runs, matching Reddit posts and user
-                      submissions will appear here with links and images for manual review.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {cases.map((c) => (
-                        <div
-                          key={c.id}
-                          className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 rounded border bg-gray-50"
-                        >
-                          {/* Title + meta */}
-                          <div className="md:col-span-7">
-                            <div className="flex items-center gap-2">
-                              {c.source === "reddit" ? (
-                                <MessageSquare className="w-4 h-4 text-orange-600" />
+
+                  {/* Description */}
+                  <div>
+                    <label className="text-xs text-gray-600">Description</label>
+                    <textarea
+                      value={rc.description || ""}
+                      onChange={(e) => updateRC(rc.id, { description: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="Explain what this root cause is and when it appears."
+                    />
+                  </div>
+
+                  {/* Sources (Reddit & User) */}
+                  <div className="p-4 rounded-lg border bg-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Link2 className="w-4 h-4 text-blue-600" />
+                      <h4 className="text-sm font-semibold text-gray-900">
+                        Sources (Reddit & User){cases.length ? ` – ${cases.length}` : ""}
+                      </h4>
+                    </div>
+                    {cases.length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        No matching sources found yet. After AI Analysis runs, matching Reddit posts and user
+                        submissions will appear here with links and images for manual review.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {cases.map((c) => (
+                          <div
+                            key={c.id}
+                            className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 rounded border bg-gray-50"
+                          >
+                            {/* Title + meta */}
+                            <div className="md:col-span-7">
+                              <div className="flex items-center gap-2">
+                                {c.source === "reddit" ? (
+                                  <MessageSquare className="w-4 h-4 text-orange-600" />
+                                ) : (
+                                  <User className="w-4 h-4 text-purple-600" />
+                                )}
+                                <span className="text-sm font-medium text-gray-900 truncate">
+                                  {c.title || "(untitled)"}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-600 ml-6">
+                                {c.source === "reddit" && c.subreddit ? `r/${c.subreddit}` : "User submission"}
+                                {c.created_at ? ` • ${new Date(c.created_at).toLocaleDateString()}` : ""}
+                              </div>
+                            </div>
+
+                            {/* Post link */}
+                            <div className="md:col-span-3">
+                              {c.url ? (
+                                <a
+                                  href={c.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
+                                  title="Open original post"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                  Open Post
+                                </a>
                               ) : (
-                                <User className="w-4 h-4 text-purple-600" />
+                                <span className="text-xs text-gray-500">No post URL</span>
                               )}
-                              <span className="text-sm font-medium text-gray-900 truncate">
-                                {c.title || "(untitled)"}
-                              </span>
                             </div>
-                            <div className="text-xs text-gray-600 ml-6">
-                              {c.source === "reddit" && c.subreddit ? `r/${c.subreddit}` : "User submission"}
-                              {c.created_at ? ` • ${new Date(c.created_at).toLocaleDateString()}` : ""}
+
+                            {/* Image link */}
+                            <div className="md:col-span-2">
+                              {c.image_url ? (
+                                <a
+                                  href={c.image_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
+                                  title="Open image"
+                                >
+                                  <ImageIcon className="w-4 h-4" />
+                                  Image
+                                </a>
+                              ) : (
+                                <span className="text-xs text-gray-500">No image</span>
+                              )}
                             </div>
                           </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                          {/* Post link */}
-                          <div className="md:col-span-3">
-                            {c.url ? (
-                              <a
-                                href={c.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
-                                title="Open original post"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                                Open Post
-                              </a>
-                            ) : (
-                              <span className="text-xs text-gray-500">No post URL</span>
-                            )}
-                          </div>
-
-                          {/* Image link */}
-                          <div className="md:col-span-2">
-                            {c.image_url ? (
-                              <a
-                                href={c.image_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
-                                title="Open image"
-                              >
-                                <ImageIcon className="w-4 h-4" />
-                                Image
-                              </a>
-                            ) : (
-                              <span className="text-xs text-gray-500">No image</span>
-                            )}
-                          </div>
+                  {/* AI Solutions Summary */}
+                  <div className="p-4 rounded-lg border bg-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BookOpen className="w-4 h-4 text-purple-600" />
+                      <h4 className="text-sm font-semibold text-gray-900">AI Solutions Summary</h4>
+                    </div>
+                    {(rc.standard_solutions || []).length === 0 && (
+                      <p className="text-xs text-gray-500 mb-2">No AI solutions yet. Add a few below.</p>
+                    )}
+                    <div className="space-y-2">
+                      {(rc.standard_solutions || []).map((s, i) => (
+                        <div key={`${rc.id}_sol_${i}`} className="flex items-center gap-2">
+                          <input
+                            value={s}
+                            onChange={(e) => updateSolution(rc.id, i, e.target.value)}
+                            placeholder="e.g., Apply a propiconazole fungicide..."
+                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          />
+                          <button
+                            onClick={() => removeSolution(rc.id, i)}
+                            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+                            title="Remove"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
                       ))}
+                      <button
+                        onClick={() => addSolution(rc.id)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Solution
+                      </button>
                     </div>
-                  )}
-                </div>
-
-                {/* AI Solutions Summary */}
-                <div className="p-4 rounded-lg border bg-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BookOpen className="w-4 h-4 text-purple-600" />
-                    <h4 className="text-sm font-semibold text-gray-900">AI Solutions Summary</h4>
                   </div>
-                  {(rc.standard_solutions || []).length === 0 && (
-                    <p className="text-xs text-gray-500 mb-2">No AI solutions yet. Add a few below.</p>
-                  )}
-                  <div className="space-y-2">
-                    {(rc.standard_solutions || []).map((s, i) => (
-                      <div key={`${rc.id}_sol_${i}`} className="flex items-center gap-2">
-                        <input
-                          value={s}
-                          onChange={(e) => updateSolution(rc.id, i, e.target.value)}
-                          placeholder="e.g., Apply a propiconazole fungicide..."
-                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                        />
-                        <button
-                          onClick={() => removeSolution(rc.id, i)}
-                          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                          title="Remove"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+
+                  {/* AI-Found Products */}
+                  <div className="p-4 rounded-lg border bg-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="w-4 h-4 text-emerald-600" />
+                      <h4 className="text-sm font-semibold text-gray-900">AI-Found Products</h4>
+                    </div>
+
+                    {(rc.ai_products || []).length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        No AI products for this root cause yet. Click <b>Sync from AI</b> to import, or add manually to
+                        Managed Products below.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(rc.ai_products || []).map((p) => (
+                          <div
+                            key={p.id}
+                            className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border bg-gray-50"
+                          >
+                            <input
+                              value={p.name}
+                              onChange={(e) => updateAIProduct(rc.id, p.id, { name: e.target.value })}
+                              className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                              placeholder="Product name"
+                            />
+                            <input
+                              value={p.category || ""}
+                              onChange={(e) => updateAIProduct(rc.id, p.id, { category: e.target.value })}
+                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                              placeholder="Category"
+                            />
+                            <input
+                              type="url"
+                              value={p.affiliate_link || ""}
+                              onChange={(e) => updateAIProduct(rc.id, p.id, { affiliate_link: e.target.value })}
+                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                              placeholder="Affiliate link (optional)"
+                            />
+                            <div className="flex items-center gap-2 md:col-span-1">
+                              {p.affiliate_link && (
+                                <a
+                                  className="p-2 rounded bg-white border hover:bg-gray-50"
+                                  href={p.affiliate_link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Open link"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
+                              <button
+                                onClick={() => promoteAIProduct(rc.id, p)}
+                                className="px-2 py-1.5 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                title="Move to Managed Products"
+                              >
+                                Promote
+                              </button>
+                              <button
+                                onClick={() => removeAIProduct(rc.id, p.id)}
+                                className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
+                                title="Remove"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                  </div>
+
+                  {/* Managed Products */}
+                  <div className="p-4 rounded-lg border bg-white">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Tag className="w-4 h-4 text-blue-600" />
+                      <h4 className="text-sm font-semibold text-gray-900">Managed Products</h4>
+                    </div>
+
+                    {(rc.products || []).length === 0 ? (
+                      <p className="text-xs text-gray-500">No managed products yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(rc.products || []).map((p) => (
+                          <div
+                            key={p.id}
+                            className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border"
+                          >
+                            <input
+                              value={p.name}
+                              onChange={(e) => updateManagedProduct(rc.id, p.id, { name: e.target.value })}
+                              className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                              placeholder="Product name"
+                            />
+                            <input
+                              value={p.category || ""}
+                              onChange={(e) => updateManagedProduct(rc.id, p.id, { category: e.target.value })}
+                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                              placeholder="Category"
+                            />
+                            <input
+                              type="url"
+                              value={p.affiliate_link || ""}
+                              onChange={(e) => updateManagedProduct(rc.id, p.id, { affiliate_link: e.target.value })}
+                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                              placeholder="Affiliate link"
+                            />
+                            <div className="flex items-center gap-2 md:col-span-1">
+                              {p.affiliate_link && (
+                                <a
+                                  className="p-2 rounded bg-white border hover:bg-gray-50"
+                                  href={p.affiliate_link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title="Open link"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
+                              <button
+                                onClick={() => removeManagedProduct(rc.id, p.id)}
+                                className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <button
-                      onClick={() => addSolution(rc.id)}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
+                      onClick={() => addManagedProduct(rc.id)}
+                      className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
                     >
                       <Plus className="w-4 h-4" />
-                      Add Solution
+                      Add Product
                     </button>
                   </div>
-                </div>
 
-                {/* AI-Found Products */}
-                <div className="p-4 rounded-lg border bg-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Package className="w-4 h-4 text-emerald-600" />
-                    <h4 className="text-sm font-semibold text-gray-900">AI-Found Products</h4>
-                  </div>
-
-                  {(rc.ai_products || []).length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      No AI products for this root cause yet. Click <b>Sync from AI</b> to import, or add manually to
-                      Managed Products below.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(rc.ai_products || []).map((p) => (
-                        <div
-                          key={p.id}
-                          className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border bg-gray-50"
-                        >
-                          <input
-                            value={p.name}
-                            onChange={(e) => updateAIProduct(rc.id, p.id, { name: e.target.value })}
-                            className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                            placeholder="Product name"
-                          />
-                          <input
-                            value={p.category || ""}
-                            onChange={(e) => updateAIProduct(rc.id, p.id, { category: e.target.value })}
-                            className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                            placeholder="Category"
-                          />
-                          <input
-                            type="url"
-                            value={p.affiliate_link || ""}
-                            onChange={(e) => updateAIProduct(rc.id, p.id, { affiliate_link: e.target.value })}
-                            className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                            placeholder="Affiliate link (optional)"
-                          />
-                          <div className="flex items-center gap-2 md:col-span-1">
-                            {p.affiliate_link && (
-                              <a
-                                className="p-2 rounded bg-white border hover:bg-gray-50"
-                                href={p.affiliate_link}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Open link"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            )}
-                            <button
-                              onClick={() => promoteAIProduct(rc.id, p)}
-                              className="px-2 py-1.5 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
-                              title="Move to Managed Products"
-                            >
-                              Promote
-                            </button>
-                            <button
-                              onClick={() => removeAIProduct(rc.id, p.id)}
-                              className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
-                              title="Remove"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                  {/* Footer */}
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>
+                        Threshold: {(rc.confidence_threshold ?? 0.7).toFixed(2)} • Success:{" "}
+                        {((rc.success_rate ?? 0.6) * 100).toFixed(0)}%
+                      </span>
                     </div>
-                  )}
-                </div>
-
-                {/* Managed Products */}
-                <div className="p-4 rounded-lg border bg-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Tag className="w-4 h-4 text-blue-600" />
-                    <h4 className="text-sm font-semibold text-gray-900">Managed Products</h4>
-                  </div>
-
-                  {(rc.products || []).length === 0 ? (
-                    <p className="text-xs text-gray-500">No managed products yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(rc.products || []).map((p) => (
-                        <div
-                          key={p.id}
-                          className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border"
-                        >
-                          <input
-                            value={p.name}
-                            onChange={(e) => updateManagedProduct(rc.id, p.id, { name: e.target.value })}
-                            className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                            placeholder="Product name"
-                          />
-                          <input
-                            value={p.category || ""}
-                            onChange={(e) => updateManagedProduct(rc.id, p.id, { category: e.target.value })}
-                            className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                            placeholder="Category"
-                          />
-                          <input
-                            type="url"
-                            value={p.affiliate_link || ""}
-                            onChange={(e) => updateManagedProduct(rc.id, p.id, { affiliate_link: e.target.value })}
-                            className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                            placeholder="Affiliate link"
-                          />
-                          <div className="flex items-center gap-2 md:col-span-1">
-                            {p.affiliate_link && (
-                              <a
-                                className="p-2 rounded bg-white border hover:bg-gray-50"
-                                href={p.affiliate_link}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="Open link"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            )}
-                            <button
-                              onClick={() => removeManagedProduct(rc.id, p.id)}
-                              className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => addManagedProduct(rc.id)}
-                    className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Product
-                  </button>
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
                     <span>
-                      Threshold: {(rc.confidence_threshold ?? 0.7).toFixed(2)} • Success:{" "}
-                      {((rc.success_rate ?? 0.6) * 100).toFixed(0)}%
+                      Updated: {rc.updated_at ? new Date(rc.updated_at).toLocaleString() : "—"}
                     </span>
                   </div>
-                  <span>
-                    Updated: {rc.updated_at ? new Date(rc.updated_at).toLocaleString() : "—"}
-                  </span>
                 </div>
-              </div>
+              )}
+
+              {activeTab === 'schedule' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold text-gray-900">Treatment Schedules</h4>
+                    <button
+                      onClick={() => setShowScheduleForm(true)}
+                      className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Schedule</span>
+                    </button>
+                  </div>
+
+                  {getSchedulesForRootCause(rc.id).length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h5 className="text-lg font-medium text-gray-900 mb-2">No Treatment Schedules</h5>
+                      <p className="text-gray-600 mb-4">Create step-by-step treatment schedules for this root cause.</p>
+                      <button
+                        onClick={() => setShowScheduleForm(true)}
+                        className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors mx-auto"
+                      >
+                        <Plus className="w-5 h-5" />
+                        <span>Create First Schedule</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {getSchedulesForRootCause(rc.id).map((schedule) => (
+                        <div key={schedule.id} className="border border-gray-200 rounded-lg p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h5 className="text-lg font-medium text-gray-900 mb-2">{schedule.name}</h5>
+                              <p className="text-gray-600 mb-3">{schedule.description}</p>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <div className="flex items-center space-x-1">
+                                  <Clock className="w-4 h-4" />
+                                  <span>{schedule.total_duration}</span>
+                                </div>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(schedule.difficulty_level)}`}>
+                                  {schedule.difficulty_level}
+                                </span>
+                                <span>{schedule.steps.length} steps</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setSelectedSchedule(schedule)}
+                              className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              <BookOpen className="w-4 h-4" />
+                              <span>View Steps</span>
+                            </button>
+                          </div>
+
+                          {schedule.success_indicators.length > 0 && (
+                            <div>
+                              <h6 className="text-sm font-medium text-gray-700 mb-2">Success Indicators:</h6>
+                              <ul className="space-y-1">
+                                {schedule.success_indicators.map((indicator, idx) => (
+                                  <li key={idx} className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <CheckCircle className="w-3 h-3 text-green-500" />
+                                    <span>{indicator}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })
@@ -1256,393 +1381,6 @@ const RootCauseManager: React.FC = () => {
             </div>
           </div>
         </Modal>
-      )}
-
-      {/* Schedule Form Modal */}
-      {showScheduleForm && selectedRootCause && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Create Treatment Schedule for {selectedRootCause.name}
-                </h3>
-                <button
-                  onClick={() => setShowScheduleForm(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                {/* Basic Schedule Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Schedule Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={scheduleFormData.name}
-                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="e.g., Standard Brown Patch Treatment"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Total Duration
-                    </label>
-                    <input
-                      type="text"
-                      value={scheduleFormData.total_duration}
-                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, total_duration: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="e.g., 4-6 weeks"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description *
-                  </label>
-                  <textarea
-                    value={scheduleFormData.description}
-                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Describe the overall treatment approach..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Difficulty Level
-                  </label>
-                  <select
-                    value={scheduleFormData.difficulty_level}
-                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, difficulty_level: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="beginner">Beginner</option>
-                    <option value="intermediate">Intermediate</option>
-                    <option value="expert">Expert</option>
-                  </select>
-                </div>
-
-                {/* Success Indicators */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Success Indicators
-                    </label>
-                    <button
-                      onClick={addSuccessIndicator}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      + Add Indicator
-                    </button>
-                  </div>
-                  {scheduleFormData.success_indicators?.map((indicator, index) => (
-                    <div key={index} className="flex items-center space-x-2 mb-2">
-                      <input
-                        type="text"
-                        value={indicator}
-                        onChange={(e) => updateSuccessIndicator(index, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="e.g., New green growth visible"
-                      />
-                      {(scheduleFormData.success_indicators?.length || 0) > 1 && (
-                        <button
-                          onClick={() => removeSuccessIndicator(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Steps Section */}
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Treatment Steps</h4>
-                  
-                  {/* Existing Steps */}
-                  {scheduleFormData.steps && scheduleFormData.steps.length > 0 && (
-                    <div className="space-y-3 mb-6">
-                      {scheduleFormData.steps.map((step, index) => (
-                        <div key={step.id} className="p-4 border border-gray-200 rounded-lg">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <span className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-sm font-medium rounded-full">
-                                  {step.step_number}
-                                </span>
-                                <h5 className="font-medium text-gray-900">{step.title}</h5>
-                                {step.is_critical && (
-                                  <AlertCircle className="w-4 h-4 text-red-500" />
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-600 mb-2">{step.description}</p>
-                              <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                <span>Timing: {step.timing}</span>
-                                {step.season && <span>Season: {step.season}</span>}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleRemoveStep(step.id)}
-                              className="text-red-600 hover:text-red-800 ml-2"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add New Step Form */}
-                  <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg">
-                    <h5 className="font-medium text-gray-900 mb-3">Add New Step</h5>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Step Title *
-                          </label>
-                          <input
-                            type="text"
-                            value={currentStep.title}
-                            onChange={(e) => setCurrentStep(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., Apply Fungicide"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Timing
-                          </label>
-                          <input
-                            type="text"
-                            value={currentStep.timing}
-                            onChange={(e) => setCurrentStep(prev => ({ ...prev, timing: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., Week 1, Day 3-5"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Description *
-                        </label>
-                        <textarea
-                          value={currentStep.description}
-                          onChange={(e) => setCurrentStep(prev => ({ ...prev, description: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          rows={2}
-                          placeholder="Detailed instructions for this step..."
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Season (Optional)
-                          </label>
-                          <select
-                            value={currentStep.season}
-                            onChange={(e) => setCurrentStep(prev => ({ ...prev, season: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="">Any Season</option>
-                            <option value="Spring">Spring</option>
-                            <option value="Summer">Summer</option>
-                            <option value="Fall">Fall</option>
-                            <option value="Winter">Winter</option>
-                          </select>
-                        </div>
-                        <div className="flex items-center">
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={currentStep.is_critical}
-                              onChange={(e) => setCurrentStep(prev => ({ ...prev, is_critical: e.target.checked }))}
-                              className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Critical Step</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      {/* Products Needed */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Products Needed
-                          </label>
-                          <button
-                            onClick={addProductToStep}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            + Add Product
-                          </button>
-                        </div>
-                        {currentStep.products_needed?.map((product, index) => (
-                          <div key={index} className="flex items-center space-x-2 mb-2">
-                            <input
-                              type="text"
-                              value={product}
-                              onChange={(e) => updateStepProduct(index, e.target.value)}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="e.g., Propiconazole fungicide"
-                            />
-                            {(currentStep.products_needed?.length || 0) > 1 && (
-                              <button
-                                onClick={() => removeStepProduct(index)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Notes (Optional)
-                        </label>
-                        <textarea
-                          value={currentStep.notes}
-                          onChange={(e) => setCurrentStep(prev => ({ ...prev, notes: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          rows={2}
-                          placeholder="Additional notes or warnings..."
-                        />
-                      </div>
-
-                      <button
-                        onClick={handleAddStep}
-                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Step</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
-                <button
-                  onClick={() => setShowScheduleForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveSchedule}
-                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <CheckSquare className="w-4 h-4" />
-                  <span>Save Schedule</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Schedule Detail Modal */}
-      {selectedSchedule && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">{selectedSchedule.name}</h3>
-                <button
-                  onClick={() => setSelectedSchedule(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <p className="text-gray-600 mb-4">{selectedSchedule.description}</p>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{selectedSchedule.total_duration}</span>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(selectedSchedule.difficulty_level)}`}>
-                      {selectedSchedule.difficulty_level}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Treatment Steps</h4>
-                  <div className="space-y-4">
-                    {selectedSchedule.steps.map((step, index) => (
-                      <div key={step.id} className="flex items-start space-x-4">
-                        <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white text-sm font-medium rounded-full flex-shrink-0">
-                          {step.step_number}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h5 className="font-medium text-gray-900">{step.title}</h5>
-                            {step.is_critical && (
-                              <AlertCircle className="w-4 h-4 text-red-500" />
-                            )}
-                          </div>
-                          <p className="text-gray-600 mb-2">{step.description}</p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
-                            <span>Timing: {step.timing}</span>
-                            {step.season && <span>Season: {step.season}</span>}
-                          </div>
-                          {step.products_needed && step.products_needed.length > 0 && (
-                            <div className="mb-2">
-                              <span className="text-sm font-medium text-gray-700">Products needed: </span>
-                              <span className="text-sm text-gray-600">{step.products_needed.join(', ')}</span>
-                            </div>
-                          )}
-                          {step.notes && (
-                            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                              <strong>Note:</strong> {step.notes}
-                            </div>
-                          )}
-                        </div>
-                        {index < selectedSchedule.steps.length - 1 && (
-                          <ArrowRight className="w-4 h-4 text-gray-400 mt-2" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {selectedSchedule.success_indicators.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Success Indicators</h4>
-                    <ul className="space-y-2">
-                      {selectedSchedule.success_indicators.map((indicator, index) => (
-                        <li key={index} className="flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-gray-700">{indicator}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
