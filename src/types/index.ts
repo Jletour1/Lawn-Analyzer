@@ -176,6 +176,32 @@ export interface CategorySuggestion {
   reviewed_by?: string;
 }
 
+export interface LearningPattern {
+  id: string;
+  pattern_type: 'visual_similarity' | 'treatment_success' | 'seasonal_correlation' | 'user_feedback';
+  confidence: number;
+  success_rate: number;
+  case_count: number;
+  visual_features: {
+    dominant_colors: string[];
+    texture_patterns: string[];
+    shape_characteristics: string[];
+  };
+  treatment_outcomes: {
+    successful_treatments: string[];
+    failed_treatments: string[];
+    average_success_rate: number;
+  };
+  contextual_factors: {
+    grass_types: string[];
+    seasons: string[];
+    locations: string[];
+    common_descriptions: string[];
+  };
+  created_at: string;
+  last_updated: string;
+}
+
 export interface CategoryApproval {
   suggestion_id: string;
   approved: boolean;

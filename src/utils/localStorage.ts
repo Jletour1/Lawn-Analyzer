@@ -1,5 +1,6 @@
 // Local storage utilities for development
 import { CategorySuggestion } from '../types';
+import { LearningPattern } from '../types';
 
 export interface LocalUserSubmission {
   id: string;
@@ -28,6 +29,8 @@ export interface LocalAnalysisData {
   reddit_analyses: any[];
   analyzed_posts: any[];
   category_suggestions?: CategorySuggestion[];
+  learning_patterns?: LearningPattern[];
+  root_causes?: any[];
   settings: {
     openai_api_key?: string;
     reddit_client_id?: string;

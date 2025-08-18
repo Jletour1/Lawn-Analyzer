@@ -3,6 +3,7 @@ import { LocalUserSubmission } from './localStorage';
 import { extractImageFeatures, findSimilarCases, SimilarCase } from './imageSimilarity';
 import { CategorySuggestion } from '../types';
 import { getLocalData, saveLocalData } from './localStorage';
+import { smartLearningEngine } from './smartLearningEngine';
 
 export interface MockAnalysisResult {
   confidence: number;
@@ -169,6 +170,20 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
   return new Promise(async (resolve) => {
     // Simulate API delay
     setTimeout(async () => {
+      // Get smart recommendations from learning engine
+      const imageFeatures = await extractImageFeatures(submission.image_data);
+      const smartRecommendations = smartLearningEngine.generateSmartRecommendations(
+        imageFeatures,
+        submission.problem_description,
+        {
+          grassType: submission.grass_type,
+          location: submission.location,
+          season: submission.season
+        }
+      );
+
+      console.log('Mock analysis using smart recommendations:', smartRecommendations.length);
+
       // Find similar cases from database
       const similarCases = await findSimilarCases(
         submission.image_data,
@@ -193,17 +208,38 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
       // Find matching pattern based on keywords
       let selectedPattern = mockAnalysisPatterns[0]; // default
 
-      for (const pattern of mockAnalysisPatterns) {
-        const matchCount = pattern.keywords.filter(keyword =>
-          description.includes(keyword)
-        ).length;
+      // If we have smart recommendations, use the best one
+      if (smartRecommendations.length > 0) {
+        const bestRecommendation = smartRecommendations[0];
+        selectedPattern = {
+          keywords: ['smart', 'learning'],
+          result: {
+            confidence: bestRecommendation.confidence,
+            rootCause: bestRecommendation.root_cause + '. ' + bestRecommendation.reasoning,
+            solutions: bestRecommendation.solutions,
+            products: bestRecommendation.products || mockAnalysisPatterns[0].result.products,
+            healthScore: Math.round((1 - bestRecommendation.expected_success_rate) * 10) || 5,
+            urgency: bestRecommendation.expected_success_rate > 0.8 ? 'low' as const : 
+                    bestRecommendation.expected_success_rate > 0.6 ? 'medium' as const : 'high' as const,
+            similarCases: bestRecommendation.similar_cases.length,
+            difficulty: 'intermediate' as const,
+            costEstimate: '$35-75',
+            timeline: '2-4 weeks'
+          }
+        };
+      } else {
+        // Fallback to keyword matching
+        for (const pattern of mockAnalysisPatterns) {
+          const matchCount = pattern.keywords.filter(keyword =>
+            description.includes(keyword)
+          ).length;
 
-        if (matchCount > 0) {
-          selectedPattern = pattern;
-          break;
+          if (matchCount > 0) {
+            selectedPattern = pattern;
+            break;
+          }
         }
       }
-
       // Adjust confidence based on description quality
       const result = { ...selectedPattern.result };
 
@@ -223,6 +259,29 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
       }
 
       result.confidence = Math.min(result.confidence, 0.95); // Cap at 95%
+
+      // Learn from this mock analysis
+      const analysisForLearning = {
+        id: submission.id,
+        root_cause: result.rootCause,
+        solutions: result.solutions,
+        learning_confidence: result.confidence,
+        image_analysis: {
+          dominant_colors: imageFeatures.dominantColors || [],
+          texture_analysis: 'Mock texture analysis',
+          problem_areas: [{
+            type: 'detected_issue',
+            severity: result.healthScore < 5 ? 0.8 : 0.4,
+            location: 'mock area',
+            description: result.rootCause
+          }]
+        },
+        grass_type_detected: submission.grass_type,
+        seasonal_timing: submission.season,
+        climate_zone: submission.location
+      };
+
+      smartLearningEngine.learnFromAnalysis(analysisForLearning as any);
 
 
     // Occasionally suggest new categories for testing (10% chance)

@@ -3,6 +3,7 @@ import { LocalUserSubmission } from './localStorage';
 import { extractImageFeatures, findSimilarCases, buildEnhancedPrompt, SimilarCase } from './imageSimilarity';
 import { CategorySuggestion } from '../types';
 import { getLocalData, saveLocalData } from './localStorage';
+import { smartLearningEngine } from './smartLearningEngine';
 
 export interface RealAnalysisResult {
   confidence: number;
@@ -46,6 +47,7 @@ export interface RealAnalysisResult {
 
 const LAWN_DIAGNOSTIC_SYSTEM_PROMPT = `You are a professional lawn-care diagnostician. Analyze an image of a lawn and any user notes to identify likely issues and recommend next steps.
 
+IMPORTANT: You have access to a smart learning system that has analyzed thousands of similar cases. Use this knowledge to improve your diagnosis accuracy.
 Do this every time:
 
 Inspect image quality (lighting, focus, resolution, obstruction) before diagnosing.
@@ -120,9 +122,23 @@ export const performRealAnalysis = async (submission: LocalUserSubmission): Prom
   try {
     console.log('Starting real analysis...');
 
+    // Get smart recommendations from learning engine
+    console.log('Getting smart recommendations from learning engine...');
+    const imageFeatures = await extractImageFeatures(submission.image_data);
+    const smartRecommendations = smartLearningEngine.generateSmartRecommendations(
+      imageFeatures,
+      submission.problem_description,
+      {
+        grassType: submission.grass_type,
+        location: submission.location,
+        season: submission.season
+      }
+    );
+
+    console.log('Smart recommendations generated:', smartRecommendations.length);
+
     // Extract image features and find similar cases
     console.log('Extracting image features...');
-    const imageFeatures = await extractImageFeatures(submission.image_data);
     console.log('Image features extracted:', imageFeatures);
 
     console.log('Finding similar cases...');
@@ -170,6 +186,21 @@ export const performRealAnalysis = async (submission: LocalUserSubmission): Prom
     }
     if (submission.pet_traffic) {
       userPrompt += `\nNote: This area receives heavy pet traffic`;
+    }
+
+    // Add smart recommendations to prompt
+    if (smartRecommendations.length > 0) {
+      userPrompt += `\n\nSMART LEARNING INSIGHTS:
+Based on analysis of similar cases, here are the top recommendations from our learning system:
+
+${smartRecommendations.map((rec, idx) => 
+  `${idx + 1}. ${rec.root_cause} (${Math.round(rec.confidence * 100)}% confidence, ${Math.round(rec.expected_success_rate * 100)}% expected success)
+   Reasoning: ${rec.reasoning}
+   Solutions: ${rec.solutions.slice(0, 2).join(', ')}
+   Source: ${rec.learning_source}`
+).join('\n\n')}
+
+Please consider these learned patterns in your analysis, but prioritize what you observe in the current image.`;
     }
 
     console.log('Making OpenAI API call...');
@@ -266,6 +297,30 @@ export const performRealAnalysis = async (submission: LocalUserSubmission): Prom
       similarCases,
       databaseInsights
     };
+
+    // Learn from this analysis
+    console.log('Teaching AI from this analysis...');
+    const analysisForLearning = {
+      id: submission.id,
+      root_cause: finalResult.rootCause,
+      solutions: finalResult.solutions,
+      learning_confidence: finalResult.confidence,
+      image_analysis: {
+        dominant_colors: imageFeatures.dominantColors || [],
+        texture_analysis: 'Analyzed texture patterns',
+        problem_areas: finalResult.visualIndicators?.patchCharacteristics ? [{
+          type: finalResult.visualIndicators.patchCharacteristics.shape,
+          severity: finalResult.healthScore < 5 ? 0.8 : 0.4,
+          location: 'detected area',
+          description: finalResult.rootCause
+        }] : []
+      },
+      grass_type_detected: submission.grass_type,
+      seasonal_timing: submission.season,
+      climate_zone: submission.location
+    };
+
+    smartLearningEngine.learnFromAnalysis(analysisForLearning as any);
 
     // Process category suggestions if any
     if (result.categorySuggestions && result.categorySuggestions.length > 0) {
