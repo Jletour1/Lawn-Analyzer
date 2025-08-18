@@ -28,6 +28,7 @@ export interface RedditComment {
 export interface CollectionResult {
   posts: RedditPost[];
   totalCollected: number;
+  duplicatesSkipped: number;
   errors: string[];
 }
 
@@ -223,6 +224,9 @@ export const collectRedditData = async (options: {
   keywords?: string[];
   postsPerKeyword?: number;
   includeComments?: boolean;
+  startDate?: number; // Unix timestamp
+  endDate?: number; // Unix timestamp
+  existingPostIds?: Set<string>;
   onProgress?: (completed: number, total: number) => void;
 } = {}): Promise<CollectionResult> => {
   const collector = new RedditCollector();
@@ -230,12 +234,27 @@ export const collectRedditData = async (options: {
   const keywords = options.keywords || ALL_KEYWORDS.slice(0, 15); // Use top 15 keywords
   const postsPerKeyword = options.postsPerKeyword || 10;
   const includeComments = options.includeComments !== false;
+  const startDate = options.startDate;
+  const endDate = options.endDate;
+  const existingPostIds = options.existingPostIds || new Set();
   const onProgress = options.onProgress;
 
   const allPosts: RedditPost[] = [];
   const errors: string[] = [];
+  let duplicatesSkipped = 0;
 
   console.log(`🌿 Starting Reddit collection from ${subreddits.length} subreddits with ${keywords.length} keywords...`);
+  
+  if (startDate || endDate) {
+    console.log('📅 Date filtering enabled:', {
+      startDate: startDate ? new Date(startDate * 1000).toLocaleDateString() : 'No start date',
+      endDate: endDate ? new Date(endDate * 1000).toLocaleDateString() : 'No end date'
+    });
+  }
+  
+  if (existingPostIds.size > 0) {
+    console.log('🔄 Duplicate detection enabled:', existingPostIds.size, 'existing posts to check against');
+  }
 
   const totalOperations = subreddits.length * keywords.length;
   let completedOperations = 0;
@@ -251,6 +270,24 @@ export const collectRedditData = async (options: {
         const posts = await collector.searchSubreddit(subreddit, keyword, postsPerKeyword);
 
         for (const post of posts) {
+          // Check for duplicates first
+          if (existingPostIds.has(post.id)) {
+            duplicatesSkipped++;
+            console.log(`⏭️ Skipping duplicate post: ${post.id}`);
+            continue;
+          }
+          
+          // Check date range if specified
+          if (startDate && post.created_utc < startDate) {
+            console.log(`📅 Skipping post before start date: ${post.title.substring(0, 30)}...`);
+            continue;
+          }
+          
+          if (endDate && post.created_utc > endDate) {
+            console.log(`📅 Skipping post after end date: ${post.title.substring(0, 30)}...`);
+            continue;
+          }
+
           // Avoid duplicates
           if (!allPosts.find(p => p.id === post.id)) {
             // Get comments if requested and post has comments
@@ -299,11 +336,12 @@ export const collectRedditData = async (options: {
     }
   }
 
-  console.log(`\n✅ Collection complete: ${allPosts.length} posts collected with ${errors.length} errors`);
+  console.log(`\n✅ Collection complete: ${allPosts.length} posts collected, ${duplicatesSkipped} duplicates skipped, ${errors.length} errors`);
   
   return {
     posts: allPosts,
     totalCollected: allPosts.length,
+    duplicatesSkipped,
     errors
   };
 };
