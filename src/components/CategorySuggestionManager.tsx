@@ -22,6 +22,15 @@ const CategorySuggestionManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSuggestion, setSelectedSuggestion] = useState<CategorySuggestion | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualCategory, setManualCategory] = useState({
+    category: '',
+    subcategory: '',
+    description: '',
+    visualIndicators: [''],
+    solutions: [''],
+    products: ['']
+  });
 
   useEffect(() => {
     loadSuggestions();
@@ -94,6 +103,83 @@ const CategorySuggestionManager: React.FC = () => {
     }
   };
 
+  const handleManualSubmit = () => {
+    if (!manualCategory.category.trim() || !manualCategory.description.trim()) {
+      alert('Please provide at least a category name and description');
+      return;
+    }
+
+    const localData = getLocalData();
+    if (!localData.root_causes) {
+      localData.root_causes = [];
+    }
+
+    const newRootCause = {
+      id: `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: manualCategory.category,
+      category: categorizeNewCategory(manualCategory.category),
+      description: manualCategory.description,
+      visual_indicators: manualCategory.visualIndicators.filter(vi => vi.trim()),
+      standard_root_cause: manualCategory.description,
+      standard_solutions: manualCategory.solutions.filter(s => s.trim()),
+      standard_recommendations: manualCategory.solutions.filter(s => s.trim()).map(s => `Consider: ${s}`),
+      products: manualCategory.products.filter(p => p.trim()).map((product, idx) => ({
+        id: `prod_${idx}`,
+        name: product,
+        category: 'General',
+        description: `Recommended for ${manualCategory.category}`,
+        affiliate_link: '',
+        price_range: '$20-50',
+        effectiveness_rating: 4,
+        application_timing: ['As needed'],
+        product_type: 'treatment' as const
+      })),
+      confidence_threshold: 0.8,
+      success_rate: 0.8,
+      case_count: 0,
+      seasonal_factors: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    localData.root_causes.push(newRootCause);
+    saveLocalData(localData);
+
+    // Reset form
+    setManualCategory({
+      category: '',
+      subcategory: '',
+      description: '',
+      visualIndicators: [''],
+      solutions: [''],
+      products: ['']
+    });
+    setShowManualForm(false);
+
+    console.log('Added manual root cause:', newRootCause.name);
+    alert('Category added successfully!');
+  };
+
+  const addArrayField = (field: 'visualIndicators' | 'solutions' | 'products') => {
+    setManualCategory(prev => ({
+      ...prev,
+      [field]: [...prev[field], '']
+    }));
+  };
+
+  const updateArrayField = (field: 'visualIndicators' | 'solutions' | 'products', index: number, value: string) => {
+    setManualCategory(prev => ({
+      ...prev,
+      [field]: prev[field].map((item, i) => i === index ? value : item)
+    }));
+  };
+
+  const removeArrayField = (field: 'visualIndicators' | 'solutions' | 'products', index: number) => {
+    setManualCategory(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }));
+  };
   const categorizeNewCategory = (categoryName: string): 'disease' | 'pest' | 'environmental' | 'maintenance' | 'weed' => {
     const name = categoryName.toLowerCase();
     if (name.includes('disease') || name.includes('fungal') || name.includes('blight') || name.includes('rot')) return 'disease';
@@ -147,6 +233,15 @@ const CategorySuggestionManager: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-white">AI Category Suggestions</h2>
             <p className="text-gray-400 mt-1">Review and approve new diagnostic categories suggested by AI</p>
+          </div>
+          <div className="ml-auto">
+            <button
+              onClick={() => setShowManualForm(true)}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Manual Category</span>
+            </button>
           </div>
         </div>
       </div>
@@ -340,6 +435,182 @@ const CategorySuggestionManager: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Manual Category Creation Modal */}
+      {showManualForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Add Manual Category</h3>
+                <button
+                  onClick={() => setShowManualForm(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Category Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={manualCategory.category}
+                      onChange={(e) => setManualCategory(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., Fairy Ring Disease"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Subcategory (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={manualCategory.subcategory}
+                      onChange={(e) => setManualCategory(prev => ({ ...prev, subcategory: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., Fungal Disease"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={manualCategory.description}
+                    onChange={(e) => setManualCategory(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Describe the problem, its causes, and characteristics..."
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Visual Indicators
+                    </label>
+                    <button
+                      onClick={() => addArrayField('visualIndicators')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Indicator
+                    </button>
+                  </div>
+                  {manualCategory.visualIndicators.map((indicator, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={indicator}
+                        onChange={(e) => updateArrayField('visualIndicators', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Circular brown patches with dark edges"
+                      />
+                      {manualCategory.visualIndicators.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField('visualIndicators', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Treatment Solutions
+                    </label>
+                    <button
+                      onClick={() => addArrayField('solutions')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Solution
+                    </button>
+                  </div>
+                  {manualCategory.solutions.map((solution, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={solution}
+                        onChange={(e) => updateArrayField('solutions', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Apply fungicide containing propiconazole"
+                      />
+                      {manualCategory.solutions.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField('solutions', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Recommended Products
+                    </label>
+                    <button
+                      onClick={() => addArrayField('products')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Product
+                    </button>
+                  </div>
+                  {manualCategory.products.map((product, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={product}
+                        onChange={(e) => updateArrayField('products', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., BioAdvanced Disease Control for Lawns"
+                      />
+                      {manualCategory.products.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField('products', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={() => setShowManualForm(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleManualSubmit}
+                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Category</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Review Modal */}
       {selectedSuggestion && (
