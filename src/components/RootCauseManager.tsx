@@ -231,25 +231,6 @@ const RootCauseManager: React.FC = () => {
     success_rate: 0.6,
   });
 
-  const [scheduleFormData, setScheduleFormData] = useState<Partial<TreatmentSchedule>>({
-    name: '',
-    description: '',
-    total_duration: '',
-    difficulty_level: 'intermediate',
-    steps: [],
-    success_indicators: ['']
-  });
-
-  const [currentStep, setCurrentStep] = useState<Partial<TreatmentScheduleStep>>({
-    title: '',
-    description: '',
-    timing: '',
-    season: '',
-    products_needed: [''],
-    notes: '',
-    is_critical: false
-  });
-
   /* ---------------------- Load ---------------------- */
   useEffect(() => {
     const data = getLocalData();
@@ -490,7 +471,7 @@ const RootCauseManager: React.FC = () => {
     if (!confirm("Delete this root cause? This action cannot be undone.")) return;
     setManaged((prev) => {
       const next = prev.filter((rc) => rc.id !== id);
-      persistManaged(next); // persist immediately so it “sticks”
+      persistManaged(next); // persist immediately so it "sticks"
       return next;
     });
   };
@@ -646,7 +627,7 @@ const RootCauseManager: React.FC = () => {
     const next = [rc, ...managed];
     setManaged(next);
 
-    // Make sure it’s visible immediately
+    // Make sure it's visible immediately
     setSearch("");
     setActiveCategory("all");
 
