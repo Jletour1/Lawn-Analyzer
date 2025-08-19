@@ -30,6 +30,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange, onLog
               <h1 className="text-xl font-bold text-white">Lawn Analyzer Admin</h1>
               <p className="text-xs text-gray-400">AI-Powered Lawn Diagnostics</p>
             <p className="text-xs text-gray-400 whitespace-nowrap">AI-Powered Lawn Diagnostics</p>
+            </div>
           </div>
           
           <nav className="flex space-x-1">
@@ -62,6 +63,8 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange, onLog
         </div>
       </div>
         <nav className="flex space-x-1 ml-4">
+        </nav>
+    </header>
   );
 };
 
