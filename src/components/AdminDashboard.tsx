@@ -1142,12 +1142,25 @@ const AdminDashboard: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">Submission Details</h3>
-                <button
-                  onClick={() => setSelectedSubmission(null)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setIsEditingSubmission(!isEditingSubmission)}
+                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      isEditingSubmission 
+                        ? 'bg-green-600 text-white hover:bg-green-700' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>{isEditingSubmission ? 'Save Changes' : 'Edit Analysis'}</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSubmission(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
