@@ -97,6 +97,10 @@ const CategorySuggestionManager: React.FC = () => {
       }
 
       saveLocalData(localData);
+      
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('rootCausesUpdated'));
+      
       loadSuggestions();
       setSelectedSuggestion(null);
       setAdminNotes('');
@@ -144,6 +148,9 @@ const CategorySuggestionManager: React.FC = () => {
 
     localData.root_causes.push(newRootCause);
     saveLocalData(localData);
+    
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new CustomEvent('rootCausesUpdated'));
 
     // Reset form
     setManualCategory({

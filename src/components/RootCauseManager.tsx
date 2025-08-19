@@ -29,6 +29,7 @@ const RootCauseManager: React.FC = () => {
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<TreatmentSchedule | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -52,6 +53,25 @@ const RootCauseManager: React.FC = () => {
 
   useEffect(() => {
     loadRootCauses();
+  }, []);
+
+  // Auto-refresh when localStorage changes (new root causes added from other components)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      console.log('Storage changed, reloading root causes...');
+      loadRootCauses();
+    };
+
+    // Listen for storage events (when other tabs/components modify localStorage)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events when localStorage is modified in the same tab
+    window.addEventListener('rootCausesUpdated', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('rootCausesUpdated', handleStorageChange);
+    };
   }, []);
 
   const loadRootCauses = () => {
@@ -353,7 +373,7 @@ const RootCauseManager: React.FC = () => {
               onClick={() => setShowForm(true)}
               className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors mx-auto"
             >
-              <Plus className="w-5 h-5" />
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span>Create First Root Cause</span>
             </button>
           </div>
