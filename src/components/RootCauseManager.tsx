@@ -23,7 +23,9 @@ import {
   Search,
   HelpCircle,
   Filter,
+  X,
   ExternalLink,
+  Save
   Bug,
   Droplets,
   Scissors
