@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getLocalData, saveLocalData, LocalUserSubmission, exportDataAsJSON } from '../utils/localStorage';
+import { getLocalData, saveLocalData, LocalUserSubmission, exportDataAsJSON, updateUserSubmission } from '../utils/localStorage';
 import {
   Users,
   Brain,
