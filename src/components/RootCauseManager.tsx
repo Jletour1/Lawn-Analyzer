@@ -17,7 +17,8 @@ import {
   Brain,
   Eye,
   ChevronRight,
-  Award
+  Award,
+  RefreshCw
 } from 'lucide-react';
 
 const RootCauseManager: React.FC = () => {
@@ -75,11 +76,14 @@ const RootCauseManager: React.FC = () => {
   }, []);
 
   const loadRootCauses = () => {
+    setIsLoading(true);
     const localData = getLocalData();
     const causes = localData.root_causes || [];
     const schedules = localData.treatment_schedules || [];
     setRootCauses(causes);
     setTreatmentSchedules(schedules);
+    setIsLoading(false);
+    console.log('Root causes loaded:', causes.length);
   };
 
   const handleSaveRootCause = () => {
