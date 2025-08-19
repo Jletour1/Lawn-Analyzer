@@ -82,6 +82,26 @@ type SourceCase = {
   created_at?: string | null;
 };
 
+/* ---- Treatment Schedule Types (NEW) ---- */
+type DifficultyLevel = "easy" | "medium" | "hard";
+
+type TreatmentStep = {
+  title: string;
+  instructions?: string;
+  wait_time?: string;
+};
+
+type TreatmentSchedule = {
+  id: string;
+  root_cause_id: string;
+  name: string;
+  description?: string;
+  total_duration?: string;
+  difficulty_level: DifficultyLevel;
+  steps: TreatmentStep[];
+  success_indicators: string[];
+};
+
 /* =========================================================================
    Category config
    ========================================================================= */
@@ -211,14 +231,14 @@ const normalizeCategory = (raw: any): RootCauseCategory => {
 
 const getDifficultyColor = (difficulty: string) => {
   switch (difficulty) {
-    case 'easy':
-      return 'bg-green-100 text-green-800';
-    case 'medium':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'hard':
-      return 'bg-red-100 text-red-800';
+    case "easy":
+      return "bg-green-100 text-green-800";
+    case "medium":
+      return "bg-yellow-100 text-yellow-800";
+    case "hard":
+      return "bg-red-100 text-red-800";
     default:
-      return 'bg-gray-100 text-gray-800';
+      return "bg-gray-100 text-gray-800";
   }
 };
 
@@ -230,9 +250,12 @@ const RootCauseManager: React.FC = () => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<RootCauseCategory | "all">("all");
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'schedule'>('overview');
+  const [activeTab, setActiveTab] = useState<"overview" | "schedule">("overview");
   const [showScheduleForm, setShowScheduleForm] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<TreatmentSchedule | null>(null);
+
+  // 🔧 NEW: used when creating a schedule from a specific RC
+  const [selectedRootCause, setSelectedRootCause] = useState<ManagedRootCause | null>(null);
 
   // raw data for building Sources section
   const [analyses, setAnalyses] = useState<any[]>([]);
@@ -282,6 +305,13 @@ const RootCauseManager: React.FC = () => {
     saveLocalData(data);
   };
 
+  // 🔧 NEW: Schedule persistence helper (not yet used by UI, but ready)
+  const persistSchedules = (schedules: TreatmentSchedule[]) => {
+    const data = getLocalData();
+    data.treatment_schedules = schedules;
+    saveLocalData(data);
+  };
+
   // Counts for chips (normalized)
   const categoryCounts = useMemo(() => {
     const counts: Record<RootCauseCategory, number> = {
@@ -301,9 +331,11 @@ const RootCauseManager: React.FC = () => {
     return counts;
   }, [managed]);
 
-  const getSchedulesForRootCause = (rootCauseId: string) => {
-    // Mock function - replace with actual implementation
-    return [];
+  // 🔧 UPDATED: real implementation that reads from localStorage
+  const getSchedulesForRootCause = (rootCauseId: string): TreatmentSchedule[] => {
+    const data = getLocalData();
+    const all = safeArr<TreatmentSchedule>(data.treatment_schedules);
+    return all.filter((s) => s.root_cause_id === rootCauseId);
   };
 
   /* ---------------------- Sync from AI ---------------------- */
@@ -827,371 +859,371 @@ const RootCauseManager: React.FC = () => {
               {/* Tabs */}
               <div className="flex space-x-1 mb-6 px-6 pt-6">
                 <button
-                  onClick={() => setActiveTab('overview')}
+                  onClick={() => setActiveTab("overview")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'overview'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    activeTab === "overview"
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
                   }`}
                 >
                   Overview
                 </button>
                 <button
-                  onClick={() => setActiveTab('schedule')}
+                  onClick={() => setActiveTab("schedule")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'schedule'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    activeTab === "schedule"
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
                   }`}
                 >
                   Treatment Schedule
                 </button>
               </div>
 
-              {activeTab === 'overview' && (
+              {activeTab === "overview" && (
                 <>
                   {/* Body */}
                   <div className="p-6 space-y-6">
-                  {/* Row: category/sub/threshold/success */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="text-xs text-gray-600">Category</label>
-                      <select
-                        value={safeCat}
-                        onChange={(e) => updateRC(rc.id, { category: e.target.value as RootCauseCategory })}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      >
-                        {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => (
-                          <option key={cat} value={cat}>
-                            {CATEGORY_CONFIG[cat].label}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Row: category/sub/threshold/success */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="text-xs text-gray-600">Category</label>
+                        <select
+                          value={safeCat}
+                          onChange={(e) => updateRC(rc.id, { category: e.target.value as RootCauseCategory })}
+                          className="w-full px-3 py-2 border rounded-lg"
+                        >
+                          {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => (
+                            <option key={cat} value={cat}>
+                              {CATEGORY_CONFIG[cat].label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Subcategory</label>
+                        <input
+                          value={rc.subcategory || ""}
+                          onChange={(e) => updateRC(rc.id, { subcategory: e.target.value })}
+                          placeholder="e.g., brown_patch_disease"
+                          className="w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Confidence threshold</label>
+                        <input
+                          type="number"
+                          step="0.05"
+                          min={0}
+                          max={1}
+                          value={typeof rc.confidence_threshold === "number" ? rc.confidence_threshold : 0.7}
+                          onChange={(e) =>
+                            updateRC(rc.id, { confidence_threshold: Math.max(0, Math.min(1, Number(e.target.value))) })
+                          }
+                          className="w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Success rate</label>
+                        <input
+                          type="number"
+                          step="0.05"
+                          min={0}
+                          max={1}
+                          value={typeof rc.success_rate === "number" ? rc.success_rate : 0.6}
+                          onChange={(e) =>
+                            updateRC(rc.id, { success_rate: Math.max(0, Math.min(1, Number(e.target.value))) })
+                          }
+                          className="w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-600">Subcategory</label>
-                      <input
-                        value={rc.subcategory || ""}
-                        onChange={(e) => updateRC(rc.id, { subcategory: e.target.value })}
-                        placeholder="e.g., brown_patch_disease"
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-600">Confidence threshold</label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min={0}
-                        max={1}
-                        value={typeof rc.confidence_threshold === "number" ? rc.confidence_threshold : 0.7}
-                        onChange={(e) =>
-                          updateRC(rc.id, { confidence_threshold: Math.max(0, Math.min(1, Number(e.target.value))) })
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-600">Success rate</label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min={0}
-                        max={1}
-                        value={typeof rc.success_rate === "number" ? rc.success_rate : 0.6}
-                        onChange={(e) =>
-                          updateRC(rc.id, { success_rate: Math.max(0, Math.min(1, Number(e.target.value))) })
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                  </div>
 
-                  {/* Description */}
-                  <div>
-                    <label className="text-xs text-gray-600">Description</label>
-                    <textarea
-                      value={rc.description || ""}
-                      onChange={(e) => updateRC(rc.id, { description: e.target.value })}
-                      rows={2}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      placeholder="Explain what this root cause is and when it appears."
-                    />
-                  </div>
-
-                  {/* Sources (Reddit & User) */}
-                  <div className="p-4 rounded-lg border bg-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Link2 className="w-4 h-4 text-blue-600" />
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        Sources (Reddit & User){cases.length ? ` – ${cases.length}` : ""}
-                      </h4>
+                    {/* Description */}
+                    <div>
+                      <label className="text-xs text-gray-600">Description</label>
+                      <textarea
+                        value={rc.description || ""}
+                        onChange={(e) => updateRC(rc.id, { description: e.target.value })}
+                        rows={2}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Explain what this root cause is and when it appears."
+                      />
                     </div>
-                    {cases.length === 0 ? (
-                      <p className="text-xs text-gray-500">
-                        No matching sources found yet. After AI Analysis runs, matching Reddit posts and user
-                        submissions will appear here with links and images for manual review.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {cases.map((c) => (
-                          <div
-                            key={c.id}
-                            className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 rounded border bg-gray-50"
-                          >
-                            {/* Title + meta */}
-                            <div className="md:col-span-7">
-                              <div className="flex items-center gap-2">
-                                {c.source === "reddit" ? (
-                                  <MessageSquare className="w-4 h-4 text-orange-600" />
+
+                    {/* Sources (Reddit & User) */}
+                    <div className="p-4 rounded-lg border bg-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Link2 className="w-4 h-4 text-blue-600" />
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          Sources (Reddit & User){cases.length ? ` – ${cases.length}` : ""}
+                        </h4>
+                      </div>
+                      {cases.length === 0 ? (
+                        <p className="text-xs text-gray-500">
+                          No matching sources found yet. After AI Analysis runs, matching Reddit posts and user
+                          submissions will appear here with links and images for manual review.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {cases.map((c) => (
+                            <div
+                              key={c.id}
+                              className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 rounded border bg-gray-50"
+                            >
+                              {/* Title + meta */}
+                              <div className="md:col-span-7">
+                                <div className="flex items-center gap-2">
+                                  {c.source === "reddit" ? (
+                                    <MessageSquare className="w-4 h-4 text-orange-600" />
+                                  ) : (
+                                    <User className="w-4 h-4 text-purple-600" />
+                                  )}
+                                  <span className="text-sm font-medium text-gray-900 truncate">
+                                    {c.title || "(untitled)"}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-600 ml-6">
+                                  {c.source === "reddit" && c.subreddit ? `r/${c.subreddit}` : "User submission"}
+                                  {c.created_at ? ` • ${new Date(c.created_at).toLocaleDateString()}` : ""}
+                                </div>
+                              </div>
+
+                              {/* Post link */}
+                              <div className="md:col-span-3">
+                                {c.url ? (
+                                  <a
+                                    href={c.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
+                                    title="Open original post"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    Open Post
+                                  </a>
                                 ) : (
-                                  <User className="w-4 h-4 text-purple-600" />
+                                  <span className="text-xs text-gray-500">No post URL</span>
                                 )}
-                                <span className="text-sm font-medium text-gray-900 truncate">
-                                  {c.title || "(untitled)"}
-                                </span>
                               </div>
-                              <div className="text-xs text-gray-600 ml-6">
-                                {c.source === "reddit" && c.subreddit ? `r/${c.subreddit}` : "User submission"}
-                                {c.created_at ? ` • ${new Date(c.created_at).toLocaleDateString()}` : ""}
+
+                              {/* Image link */}
+                              <div className="md:col-span-2">
+                                {c.image_url ? (
+                                  <a
+                                    href={c.image_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
+                                    title="Open image"
+                                  >
+                                    <ImageIcon className="w-4 h-4" />
+                                    Image
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-gray-500">No image</span>
+                                )}
                               </div>
                             </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-                            {/* Post link */}
-                            <div className="md:col-span-3">
-                              {c.url ? (
-                                <a
-                                  href={c.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
-                                  title="Open original post"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                  Open Post
-                                </a>
-                              ) : (
-                                <span className="text-xs text-gray-500">No post URL</span>
-                              )}
-                            </div>
-
-                            {/* Image link */}
-                            <div className="md:col-span-2">
-                              {c.image_url ? (
-                                <a
-                                  href={c.image_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
-                                  title="Open image"
-                                >
-                                  <ImageIcon className="w-4 h-4" />
-                                  Image
-                                </a>
-                              ) : (
-                                <span className="text-xs text-gray-500">No image</span>
-                              )}
-                            </div>
+                    {/* AI Solutions Summary */}
+                    <div className="p-4 rounded-lg border bg-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="w-4 h-4 text-purple-600" />
+                        <h4 className="text-sm font-semibold text-gray-900">AI Solutions Summary</h4>
+                      </div>
+                      {(rc.standard_solutions || []).length === 0 && (
+                        <p className="text-xs text-gray-500 mb-2">No AI solutions yet. Add a few below.</p>
+                      )}
+                      <div className="space-y-2">
+                        {(rc.standard_solutions || []).map((s, i) => (
+                          <div key={`${rc.id}_sol_${i}`} className="flex items-center gap-2">
+                            <input
+                              value={s}
+                              onChange={(e) => updateSolution(rc.id, i, e.target.value)}
+                              placeholder="e.g., Apply a propiconazole fungicide..."
+                              className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                            />
+                            <button
+                              onClick={() => removeSolution(rc.id, i)}
+                              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+                              title="Remove"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
                         ))}
+                        <button
+                          onClick={() => addSolution(rc.id)}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Solution
+                        </button>
                       </div>
-                    )}
-                  </div>
-
-                  {/* AI Solutions Summary */}
-                  <div className="p-4 rounded-lg border bg-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <BookOpen className="w-4 h-4 text-purple-600" />
-                      <h4 className="text-sm font-semibold text-gray-900">AI Solutions Summary</h4>
                     </div>
-                    {(rc.standard_solutions || []).length === 0 && (
-                      <p className="text-xs text-gray-500 mb-2">No AI solutions yet. Add a few below.</p>
-                    )}
-                    <div className="space-y-2">
-                      {(rc.standard_solutions || []).map((s, i) => (
-                        <div key={`${rc.id}_sol_${i}`} className="flex items-center gap-2">
-                          <input
-                            value={s}
-                            onChange={(e) => updateSolution(rc.id, i, e.target.value)}
-                            placeholder="e.g., Apply a propiconazole fungicide..."
-                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                          />
-                          <button
-                            onClick={() => removeSolution(rc.id, i)}
-                            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                            title="Remove"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+
+                    {/* AI-Found Products */}
+                    <div className="p-4 rounded-lg border bg-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Package className="w-4 h-4 text-emerald-600" />
+                        <h4 className="text-sm font-semibold text-gray-900">AI-Found Products</h4>
+                      </div>
+
+                      {(rc.ai_products || []).length === 0 ? (
+                        <p className="text-xs text-gray-500">
+                          No AI products for this root cause yet. Click <b>Sync from AI</b> to import, or add manually to
+                          Managed Products below.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(rc.ai_products || []).map((p) => (
+                            <div
+                              key={p.id}
+                              className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border bg-gray-50"
+                            >
+                              <input
+                                value={p.name}
+                                onChange={(e) => updateAIProduct(rc.id, p.id, { name: e.target.value })}
+                                className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                                placeholder="Product name"
+                              />
+                              <input
+                                value={p.category || ""}
+                                onChange={(e) => updateAIProduct(rc.id, p.id, { category: e.target.value })}
+                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                placeholder="Category"
+                              />
+                              <input
+                                type="url"
+                                value={p.affiliate_link || ""}
+                                onChange={(e) => updateAIProduct(rc.id, p.id, { affiliate_link: e.target.value })}
+                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                placeholder="Affiliate link (optional)"
+                              />
+                              <div className="flex items-center gap-2 md:col-span-1">
+                                {p.affiliate_link && (
+                                  <a
+                                    className="p-2 rounded bg-white border hover:bg-gray-50"
+                                    href={p.affiliate_link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title="Open link"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => promoteAIProduct(rc.id, p)}
+                                  className="px-2 py-1.5 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                  title="Move to Managed Products"
+                                >
+                                  Promote
+                                </button>
+                                <button
+                                  onClick={() => removeAIProduct(rc.id, p.id)}
+                                  className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
+                                  title="Remove"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                    </div>
+
+                    {/* Managed Products */}
+                    <div className="p-4 rounded-lg border bg-white">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Tag className="w-4 h-4 text-blue-600" />
+                        <h4 className="text-sm font-semibold text-gray-900">Managed Products</h4>
+                      </div>
+
+                      {(rc.products || []).length === 0 ? (
+                        <p className="text-xs text-gray-500">No managed products yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(rc.products || []).map((p) => (
+                            <div
+                              key={p.id}
+                              className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border"
+                            >
+                              <input
+                                value={p.name}
+                                onChange={(e) => updateManagedProduct(rc.id, p.id, { name: e.target.value })}
+                                className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                                placeholder="Product name"
+                              />
+                              <input
+                                value={p.category || ""}
+                                onChange={(e) => updateManagedProduct(rc.id, p.id, { category: e.target.value })}
+                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                placeholder="Category"
+                              />
+                              <input
+                                type="url"
+                                value={p.affiliate_link || ""}
+                                onChange={(e) => updateManagedProduct(rc.id, p.id, { affiliate_link: e.target.value })}
+                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                placeholder="Affiliate link"
+                              />
+                              <div className="flex items-center gap-2 md:col-span-1">
+                                {p.affiliate_link && (
+                                  <a
+                                    className="p-2 rounded bg-white border hover:bg-gray-50"
+                                    href={p.affiliate_link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title="Open link"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => removeManagedProduct(rc.id, p.id)}
+                                  className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <button
-                        onClick={() => addSolution(rc.id)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
+                        onClick={() => addManagedProduct(rc.id)}
+                        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
                       >
                         <Plus className="w-4 h-4" />
-                        Add Solution
+                        Add Product
                       </button>
                     </div>
-                  </div>
 
-                  {/* AI-Found Products */}
-                  <div className="p-4 rounded-lg border bg-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Package className="w-4 h-4 text-emerald-600" />
-                      <h4 className="text-sm font-semibold text-gray-900">AI-Found Products</h4>
-                    </div>
-
-                    {(rc.ai_products || []).length === 0 ? (
-                      <p className="text-xs text-gray-500">
-                        No AI products for this root cause yet. Click <b>Sync from AI</b> to import, or add manually to
-                        Managed Products below.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {(rc.ai_products || []).map((p) => (
-                          <div
-                            key={p.id}
-                            className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border bg-gray-50"
-                          >
-                            <input
-                              value={p.name}
-                              onChange={(e) => updateAIProduct(rc.id, p.id, { name: e.target.value })}
-                              className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                              placeholder="Product name"
-                            />
-                            <input
-                              value={p.category || ""}
-                              onChange={(e) => updateAIProduct(rc.id, p.id, { category: e.target.value })}
-                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                              placeholder="Category"
-                            />
-                            <input
-                              type="url"
-                              value={p.affiliate_link || ""}
-                              onChange={(e) => updateAIProduct(rc.id, p.id, { affiliate_link: e.target.value })}
-                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                              placeholder="Affiliate link (optional)"
-                            />
-                            <div className="flex items-center gap-2 md:col-span-1">
-                              {p.affiliate_link && (
-                                <a
-                                  className="p-2 rounded bg-white border hover:bg-gray-50"
-                                  href={p.affiliate_link}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title="Open link"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                </a>
-                              )}
-                              <button
-                                onClick={() => promoteAIProduct(rc.id, p)}
-                                className="px-2 py-1.5 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
-                                title="Move to Managed Products"
-                              >
-                                Promote
-                              </button>
-                              <button
-                                onClick={() => removeAIProduct(rc.id, p.id)}
-                                className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
-                                title="Remove"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                    {/* Footer */}
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        <span>
+                          Threshold: {(rc.confidence_threshold ?? 0.7).toFixed(2)} • Success:{" "}
+                          {((rc.success_rate ?? 0.6) * 100).toFixed(0)}%
+                        </span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Managed Products */}
-                  <div className="p-4 rounded-lg border bg-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Tag className="w-4 h-4 text-blue-600" />
-                      <h4 className="text-sm font-semibold text-gray-900">Managed Products</h4>
-                    </div>
-
-                    {(rc.products || []).length === 0 ? (
-                      <p className="text-xs text-gray-500">No managed products yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {(rc.products || []).map((p) => (
-                          <div
-                            key={p.id}
-                            className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border"
-                          >
-                            <input
-                              value={p.name}
-                              onChange={(e) => updateManagedProduct(rc.id, p.id, { name: e.target.value })}
-                              className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                              placeholder="Product name"
-                            />
-                            <input
-                              value={p.category || ""}
-                              onChange={(e) => updateManagedProduct(rc.id, p.id, { category: e.target.value })}
-                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                              placeholder="Category"
-                            />
-                            <input
-                              type="url"
-                              value={p.affiliate_link || ""}
-                              onChange={(e) => updateManagedProduct(rc.id, p.id, { affiliate_link: e.target.value })}
-                              className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                              placeholder="Affiliate link"
-                            />
-                            <div className="flex items-center gap-2 md:col-span-1">
-                              {p.affiliate_link && (
-                                <a
-                                  className="p-2 rounded bg-white border hover:bg-gray-50"
-                                  href={p.affiliate_link}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title="Open link"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                </a>
-                              )}
-                              <button
-                                onClick={() => removeManagedProduct(rc.id, p.id)}
-                                className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => addManagedProduct(rc.id)}
-                      className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Product
-                    </button>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
                       <span>
-                        Threshold: {(rc.confidence_threshold ?? 0.7).toFixed(2)} • Success:{" "}
-                        {((rc.success_rate ?? 0.6) * 100).toFixed(0)}%
+                        Updated: {rc.updated_at ? new Date(rc.updated_at).toLocaleString() : "—"}
                       </span>
                     </div>
-                    <span>
-                      Updated: {rc.updated_at ? new Date(rc.updated_at).toLocaleString() : "—"}
-                    </span>
                   </div>
-                </div>
                 </>
               )}
 
-              {activeTab === 'schedule' && (
+              {activeTab === "schedule" && (
                 <div className="p-6 space-y-6">
                   <div className="flex items-center justify-between">
                     <h4 className="text-lg font-semibold text-gray-900">Treatment Schedules</h4>
@@ -1213,7 +1245,7 @@ const RootCauseManager: React.FC = () => {
                       <p className="text-gray-600 mb-4">Create step-by-step treatment schedules for this root cause.</p>
                       <button
                         onClick={() => {
-                          setSelectedRootCause(rc);
+                          setSelectedRootCause(rc); // ✅ now defined
                           setShowScheduleForm(true);
                         }}
                         className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors mx-auto"
@@ -1235,7 +1267,11 @@ const RootCauseManager: React.FC = () => {
                                   <Clock className="w-4 h-4" />
                                   <span>{schedule.total_duration}</span>
                                 </div>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(schedule.difficulty_level)}`}>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(
+                                    schedule.difficulty_level
+                                  )}`}
+                                >
                                   {schedule.difficulty_level}
                                 </span>
                                 <span>{schedule.steps.length} steps</span>
@@ -1356,9 +1392,7 @@ const RootCauseManager: React.FC = () => {
                   step="0.05"
                   min={0}
                   max={1}
-                  value={
-                    typeof newForm.success_rate === "number" ? newForm.success_rate : 0.6
-                  }
+                  value={typeof newForm.success_rate === "number" ? newForm.success_rate : 0.6}
                   onChange={(e) =>
                     setNewForm((p) => ({
                       ...p,
@@ -1434,11 +1468,7 @@ const Modal: React.FC<{ title: string; onClose: () => void; children: React.Reac
     <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl border">
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-lg hover:bg-gray-100"
-          aria-label="Close"
-        >
+        <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
           <X className="w-5 h-5" />
         </button>
       </div>
