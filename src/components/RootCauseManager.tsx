@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Download,
   Search,
+  HelpCircle,
   Filter,
   ExternalLink
   Search,
@@ -37,6 +38,13 @@ const RootCauseManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'schedules'>('overview');
   const [isSyncing, setIsSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [dynamicCategories, setDynamicCategories] = useState<Array<{
+    id: string;
+    name: string;
+    icon: React.ReactNode;
+    color: string;
+    count: number;
+  }>>([]);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<TreatmentSchedule | null>(null);
@@ -129,7 +137,73 @@ const RootCauseManager: React.FC = () => {
     setIsLoading(true);
     const localData = getLocalData();
     const causes = localData.root_causes || [];
+    
+    // Generate dynamic categories from actual root causes
+    generateDynamicCategories(rootCauses);
     const schedules = localData.treatment_schedules || [];
+
+  const generateDynamicCategories = (rootCauses: any[]) => {
+    // Count root causes by category
+    const categoryCounts: { [key: string]: number } = {};
+    rootCauses.forEach(rc => {
+      const category = rc.category || 'other';
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    });
+
+    // Create dynamic category buttons
+    const categories = Object.entries(categoryCounts).map(([category, count]) => {
+      const categoryInfo = getCategoryInfo(category);
+      return {
+        id: category,
+        name: categoryInfo.name,
+        icon: categoryInfo.icon,
+        color: categoryInfo.color,
+        count
+      };
+    });
+
+    // Sort by count (descending) then by name
+    categories.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    
+    setDynamicCategories(categories);
+  };
+
+  const getCategoryInfo = (category: string) => {
+    const categoryMap: { [key: string]: { name: string; icon: React.ReactNode; color: string } } = {
+      'pest': {
+        name: 'Grubs & Insects',
+        icon: <Bug className="w-4 h-4" />,
+        color: 'bg-red-100 text-red-800 border-red-200'
+      },
+      'environmental': {
+        name: 'Environmental',
+        icon: <Droplets className="w-4 h-4" />,
+        color: 'bg-blue-100 text-blue-800 border-blue-200'
+      },
+      'disease': {
+        name: 'Fungal Disease',
+        icon: <AlertTriangle className="w-4 h-4" />,
+        color: 'bg-purple-100 text-purple-800 border-purple-200'
+      },
+      'weed': {
+        name: 'Weeds',
+        icon: <Leaf className="w-4 h-4" />,
+        color: 'bg-green-100 text-green-800 border-green-200'
+      },
+      'maintenance': {
+        name: 'Mowing Damage',
+        icon: <Scissors className="w-4 h-4" />,
+        color: 'bg-orange-100 text-orange-800 border-orange-200'
+      },
+      'other': {
+        name: 'Other Issues',
+        icon: <HelpCircle className="w-4 h-4" />,
+        color: 'bg-gray-100 text-gray-800 border-gray-200'
+      }
+    };
+
+    return categoryMap[category] || categoryMap['other'];
+  };
     setRootCauses(causes);
     setTreatmentSchedules(schedules);
     setIsLoading(false);
@@ -334,81 +408,28 @@ const RootCauseManager: React.FC = () => {
       products_needed: [],
       notes: '',
       is_critical: false
-    };
-    setScheduleFormData(prev => ({
-      ...prev,
-      steps: [...prev.steps, newStep]
-    }));
-  };
-
-  const updateStep = (index: number, field: keyof TreatmentScheduleStep, value: any) => {
-    setScheduleFormData(prev => ({
-      ...prev,
-      steps: prev.steps.map((step, i) => 
-        i === index ? { ...step, [field]: value } : step
-      )
-    }));
-  };
-
-  const removeStep = (index: number) => {
-    setScheduleFormData(prev => ({
-      ...prev,
-      steps: prev.steps.filter((_, i) => i !== index).map((step, i) => ({
-        ...step,
-        step_number: i + 1
-      }))
-    }));
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'disease': return 'bg-red-100 text-red-800';
-      case 'pest': return 'bg-orange-100 text-orange-800';
-      case 'environmental': return 'bg-blue-100 text-blue-800';
-      case 'maintenance': return 'bg-purple-100 text-purple-800';
-      case 'weed': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return 'bg-green-100 text-green-800';
-      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
-      case 'expert': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getSchedulesForRootCause = (rootCauseId: string) => {
-    return treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId);
-  };
-
-  const handleOpenScheduleForm = (rootCause: RootCause) => {
-    console.log('Opening schedule form for root cause:', rootCause.name);
-    setSelectedRootCause(rootCause);
-    setShowScheduleForm(true);
-  };
-
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Database className="w-8 h-8 text-green-400" />
-            <div>
-              <h2 className="text-2xl font-bold text-white">Root Cause Manager</h2>
-              <p className="text-gray-400 mt-1">Manage diagnostic categories and treatment schedules</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Root Cause</span>
-          </button>
+          {/* Dynamic category filters */}
+          {dynamicCategories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+                selectedCategory === category.id
+                  ? category.color
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {category.icon}
+              <span className="font-medium">{category.name}</span>
+              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                selectedCategory === category.id
+                  ? 'bg-white bg-opacity-50'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {category.count}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
