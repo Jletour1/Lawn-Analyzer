@@ -45,8 +45,6 @@ const AdminDashboard: React.FC = () => {
   const [selectedForDeletion, setSelectedForDeletion] = useState<Set<string>>(new Set());
   const [editingSubmission, setEditingSubmission] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
-  const [isEditingSubmission, setIsEditingSubmission] = useState(false);
-  const [editingData, setEditingData] = useState<any>({});
 
   useEffect(() => {
     loadDashboardData();
@@ -745,37 +743,6 @@ const AdminDashboard: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-white mb-1">{submission.user_email}</h4>
                       <p className="text-red-300 text-sm mb-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category
-                    </label>
-                    <select
-                      value={editForm.category}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    >
-                      <option value="disease">Disease</option>
-                      <option value="pest">Pest</option>
-                      <option value="weed">Weed</option>
-                      <option value="environmental">Environmental</option>
-                      <option value="maintenance">Maintenance</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subcategory
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.subcategory}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, subcategory: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="e.g., Brown Patch, Grubs, Pet Damage"
-                    />
-                  </div>
-                </div>
-
                         <strong>Reason:</strong> {submission.review_reason}
                       </p>
                       <p className="text-gray-300 text-sm">{submission.problem_description}</p>
