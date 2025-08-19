@@ -21,11 +21,12 @@ import {
   RefreshCw,
   Download,
   Search,
-  HelpCircle,
   Filter,
-  ExternalLink
-  Search,
-  Filter
+  ExternalLink,
+  Bug,
+  Droplets,
+  Scissors,
+  HelpCircle
 } from 'lucide-react';
 
 const RootCauseManager: React.FC = () => {
@@ -49,6 +50,7 @@ const RootCauseManager: React.FC = () => {
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<TreatmentSchedule | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -139,8 +141,13 @@ const RootCauseManager: React.FC = () => {
     const causes = localData.root_causes || [];
     
     // Generate dynamic categories from actual root causes
-    generateDynamicCategories(rootCauses);
+    generateDynamicCategories(causes);
     const schedules = localData.treatment_schedules || [];
+    setRootCauses(causes);
+    setTreatmentSchedules(schedules);
+    setIsLoading(false);
+    console.log('Root causes loaded:', causes.length);
+  };
 
   const generateDynamicCategories = (rootCauses: any[]) => {
     // Count root causes by category
@@ -203,11 +210,6 @@ const RootCauseManager: React.FC = () => {
     };
 
     return categoryMap[category] || categoryMap['other'];
-  };
-    setRootCauses(causes);
-    setTreatmentSchedules(schedules);
-    setIsLoading(false);
-    console.log('Root causes loaded:', causes.length);
   };
 
   const handleSaveRootCause = () => {
@@ -408,6 +410,98 @@ const RootCauseManager: React.FC = () => {
       products_needed: [],
       notes: '',
       is_critical: false
+    };
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: [...prev.steps, newStep]
+    }));
+  };
+
+  const updateStep = (index: number, field: string, value: any) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.map((step, i) => 
+        i === index ? { ...step, [field]: value } : step
+      )
+    }));
+  };
+
+  const removeStep = (index: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.filter((_, i) => i !== index).map((step, i) => ({
+        ...step,
+        step_number: i + 1
+      }))
+    }));
+  };
+
+  const getSchedulesForRootCause = (rootCauseId: string) => {
+    return treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId);
+  };
+
+  const getCategoryColor = (category: string) => {
+    const categoryInfo = getCategoryInfo(category);
+    return categoryInfo.color;
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    const colorMap: { [key: string]: string } = {
+      'beginner': 'bg-green-100 text-green-800',
+      'intermediate': 'bg-yellow-100 text-yellow-800',
+      'expert': 'bg-red-100 text-red-800'
+    };
+    return colorMap[difficulty] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleOpenScheduleForm = (rootCause: RootCause) => {
+    setSelectedRootCause(rootCause);
+    setShowScheduleForm(true);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Root Cause Manager</h2>
+          <p className="text-gray-400">Manage lawn problems and treatment schedules</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Root Cause</span>
+          </button>
+          <button
+            onClick={loadRootCauses}
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          {/* Search */}
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search root causes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
           {/* Dynamic category filters */}
           {dynamicCategories.map((category) => (
             <button
