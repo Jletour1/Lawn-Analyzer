@@ -21,7 +21,9 @@ import {
   MessageSquare,
   Edit,
   Save,
-  X
+  X,
+  Edit,
+  Save
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
