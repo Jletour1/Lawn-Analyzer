@@ -23,9 +23,13 @@ import {
 
 const RootCauseManager: React.FC = () => {
   const [rootCauses, setRootCauses] = useState<RootCause[]>([]);
+  const [filteredRootCauses, setFilteredRootCauses] = useState<RootCause[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'schedules'>('overview');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
@@ -54,7 +58,47 @@ const RootCauseManager: React.FC = () => {
 
   useEffect(() => {
     loadRootCauses();
+    
+    // Listen for storage changes (cross-tab sync)
+    const handleStorageChange = () => {
+      loadRootCauses();
+    };
+    
+    // Listen for custom events (same-tab updates)
+    const handleRootCausesUpdate = () => {
+      loadRootCauses();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('rootCausesUpdated', handleRootCausesUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('rootCausesUpdated', handleRootCausesUpdate);
+    };
   }, []);
+
+  // Filter root causes when data or filters change
+  useEffect(() => {
+    let filtered = rootCauses;
+    
+    // Apply category filter
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter(rc => rc.category === activeFilter);
+    }
+    
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(rc => 
+        rc.name.toLowerCase().includes(search) ||
+        rc.description.toLowerCase().includes(search) ||
+        rc.visual_indicators.some(vi => vi.toLowerCase().includes(search))
+      );
+    }
+    
+    setFilteredRootCauses(filtered);
+  }, [rootCauses, activeFilter, searchTerm]);
 
   // Auto-refresh when localStorage changes (new root causes added from other components)
   useEffect(() => {
