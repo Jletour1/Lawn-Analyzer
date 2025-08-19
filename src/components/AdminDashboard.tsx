@@ -18,7 +18,8 @@ import {
   BarChart3,
   Target,
   Clock,
-  Plus
+  Plus,
+  Filter
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
