@@ -21,12 +21,12 @@ import {
   RefreshCw,
   Download,
   Search,
+  HelpCircle,
   Filter,
   ExternalLink,
   Bug,
   Droplets,
-  Scissors,
-  HelpCircle
+  Scissors
 } from 'lucide-react';
 
 const RootCauseManager: React.FC = () => {
