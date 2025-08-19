@@ -18,7 +18,7 @@ import {
   MapPin,
   Leaf,
   Database,
-  MessageSquare
+  MessageSquare,
   Edit,
   Save,
   X
@@ -804,6 +804,299 @@ const AdminDashboard: React.FC = () => {
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Submission Modal */}
+      {editingSubmission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Edit User Submission</h3>
+                <button
+                  onClick={() => {
+                    setEditingSubmission(null);
+                    setEditFormData({});
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column - User Info & Image */}
+                <div>
+                  <img
+                    src={editingSubmission.image_data}
+                    alt="Lawn submission"
+                    className="w-full h-48 object-cover rounded-lg mb-4"
+                  />
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={editFormData.user_email || ''}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, user_email: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                      <input
+                        type="text"
+                        value={editFormData.user_name || ''}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, user_name: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Problem Description</label>
+                      <textarea
+                        value={editFormData.problem_description || ''}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, problem_description: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        rows={4}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Grass Type</label>
+                        <select
+                          value={editFormData.grass_type || ''}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, grass_type: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                          <option value="">Select grass type</option>
+                          <option value="bermuda">Bermuda</option>
+                          <option value="zoysia">Zoysia</option>
+                          <option value="st-augustine">St. Augustine</option>
+                          <option value="kentucky-bluegrass">Kentucky Bluegrass</option>
+                          <option value="tall-fescue">Tall Fescue</option>
+                          <option value="perennial-ryegrass">Perennial Ryegrass</option>
+                          <option value="unknown">Unknown</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
+                        <input
+                          type="text"
+                          value={editFormData.location || ''}
+                          onChange={(e) => setEditFormData(prev => ({ ...prev, location: e.target.value }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="City, State"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Analysis Results */}
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-4">AI Analysis Results</h4>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Root Cause</label>
+                      <textarea
+                        value={editFormData.analysis_result?.rootCause || ''}
+                        onChange={(e) => setEditFormData(prev => ({
+                          ...prev,
+                          analysis_result: { ...prev.analysis_result, rootCause: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                        <select
+                          value={editFormData.analysis_result?.category || ''}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, category: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                          <option value="">Select category</option>
+                          <option value="Disease">Disease</option>
+                          <option value="Pest">Pest</option>
+                          <option value="Weed">Weed</option>
+                          <option value="Environmental">Environmental</option>
+                          <option value="Pet Damage">Pet Damage</option>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="General">General</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Subcategory</label>
+                        <input
+                          type="text"
+                          value={editFormData.analysis_result?.subcategory || ''}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, subcategory: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="e.g., Brown Patch, Grubs"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Confidence</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={editFormData.analysis_result?.confidence || 0.5}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, confidence: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Health Score</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={editFormData.analysis_result?.healthScore || 5}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, healthScore: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Urgency</label>
+                        <select
+                          value={editFormData.analysis_result?.urgency || 'medium'}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, urgency: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Difficulty</label>
+                        <select
+                          value={editFormData.analysis_result?.difficulty || 'intermediate'}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, difficulty: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="expert">Expert</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Timeline</label>
+                        <input
+                          type="text"
+                          value={editFormData.analysis_result?.timeline || ''}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            analysis_result: { ...prev.analysis_result, timeline: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="e.g., 2-4 weeks"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Cost Estimate</label>
+                      <input
+                        type="text"
+                        value={editFormData.analysis_result?.costEstimate || ''}
+                        onChange={(e) => setEditFormData(prev => ({
+                          ...prev,
+                          analysis_result: { ...prev.analysis_result, costEstimate: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="e.g., $50-100"
+                      />
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-300">Solutions</label>
+                        <button
+                          onClick={addSolution}
+                          className="text-green-400 hover:text-green-300 text-sm"
+                        >
+                          + Add Solution
+                        </button>
+                      </div>
+                      {(editFormData.analysis_result?.solutions || []).map((solution: string, index: number) => (
+                        <div key={index} className="flex items-center space-x-2 mb-2">
+                          <input
+                            type="text"
+                            value={solution}
+                            onChange={(e) => updateSolution(index, e.target.value)}
+                            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Treatment solution..."
+                          />
+                          {(editFormData.analysis_result?.solutions || []).length > 1 && (
+                            <button
+                              onClick={() => removeSolution(index)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={() => {
+                    setEditingSubmission(null);
+                    setEditFormData({});
+                  }}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex items-center space-x-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
                 </button>
               </div>
             </div>
