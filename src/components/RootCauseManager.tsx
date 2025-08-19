@@ -825,7 +825,7 @@ const RootCauseManager: React.FC = () => {
               </div>
 
               {/* Tabs */}
-              <div className="flex space-x-1 mb-6">
+              <div className="flex space-x-1 mb-6 px-6 pt-6">
                 <button
                   onClick={() => setActiveTab('overview')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -849,8 +849,9 @@ const RootCauseManager: React.FC = () => {
               </div>
 
               {activeTab === 'overview' && (
-                {/* Body */}
-                <div className="p-6 space-y-6">
+                <>
+                  {/* Body */}
+                  <div className="p-6 space-y-6">
                   {/* Row: category/sub/threshold/success */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
@@ -1191,7 +1192,7 @@ const RootCauseManager: React.FC = () => {
               )}
 
               {activeTab === 'schedule' && (
-                <div className="space-y-6">
+                <div className="p-6 space-y-6">
                   <div className="flex items-center justify-between">
                     <h4 className="text-lg font-semibold text-gray-900">Treatment Schedules</h4>
                     <button
