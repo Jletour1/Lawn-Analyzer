@@ -1,4 +1,4 @@
-// src/pages/RootCauseManager.tsx
+// src/components/RootCauseManager.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   getLocalData,
@@ -76,13 +76,13 @@ type SourceCase = {
   id: string;
   source: "reddit" | "user";
   title: string;
-  url?: string | null;        // reddit post url when available
-  image_url?: string | null;  // image from analysis or submission
+  url?: string | null;
+  image_url?: string | null;
   subreddit?: string | null;
   created_at?: string | null;
 };
 
-/* ---- Treatment Schedule Types (NEW) ---- */
+/* ---- Treatment Schedule Types ---- */
 type DifficultyLevel = "easy" | "medium" | "hard";
 
 type TreatmentStep = {
@@ -178,13 +178,12 @@ const CATEGORY_CONFIG: Record<
 };
 
 /* =========================================================================
-   Utilities + normalization (prevents 'undefined .color' errors)
+   Utilities + normalization
    ========================================================================= */
 const safeArr = <T,>(v: unknown, fb: T[] = []): T[] => (Array.isArray(v) ? (v as T[]) : fb);
 const titleCase = (s?: string) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase()) : "";
 
-/* Extract image url from reddit-ish objects */
 const htmlUnescape = (u?: string) => (u ? u.replace(/&amp;/g, "&") : u || "");
 const getRedditImageFromData = (rd: any): string | null => {
   if (!rd) return null;
@@ -201,15 +200,10 @@ const getRedditImageFromData = (rd: any): string | null => {
       if (typeof su === "string") return htmlUnescape(su);
     }
   } catch {}
-  if (typeof rd?.url_overridden_by_dest === "string" && /^https?:\/\//.test(rd.url_overridden_by_dest)) {
+  if (typeof rd?.url_overridden_by_dest === "string" && /^https?:\/\//.test(rd.url_overridden_by_dest))
     return htmlUnescape(rd.url_overridden_by_dest);
-  }
-  if (typeof rd?.url === "string" && /^https?:\/\//.test(rd.url)) {
-    return htmlUnescape(rd.url);
-  }
-  if (typeof rd?.thumbnail === "string" && /^https?:\/\//.test(rd.thumbnail)) {
-    return htmlUnescape(rd.thumbnail);
-  }
+  if (typeof rd?.url === "string" && /^https?:\/\//.test(rd.url)) return htmlUnescape(rd.url);
+  if (typeof rd?.thumbnail === "string" && /^https?:\/\//.test(rd.thumbnail)) return htmlUnescape(rd.thumbnail);
   return null;
 };
 
@@ -254,7 +248,7 @@ const RootCauseManager: React.FC = () => {
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<TreatmentSchedule | null>(null);
 
-  // 🔧 NEW: used when creating a schedule from a specific RC
+  // ✅ Fix for ReferenceError
   const [selectedRootCause, setSelectedRootCause] = useState<ManagedRootCause | null>(null);
 
   // raw data for building Sources section
@@ -305,7 +299,7 @@ const RootCauseManager: React.FC = () => {
     saveLocalData(data);
   };
 
-  // 🔧 NEW: Schedule persistence helper (not yet used by UI, but ready)
+  // (Ready for future create/edit)
   const persistSchedules = (schedules: TreatmentSchedule[]) => {
     const data = getLocalData();
     data.treatment_schedules = schedules;
@@ -331,7 +325,7 @@ const RootCauseManager: React.FC = () => {
     return counts;
   }, [managed]);
 
-  // 🔧 UPDATED: real implementation that reads from localStorage
+  // Read schedules from localStorage and filter by root cause
   const getSchedulesForRootCause = (rootCauseId: string): TreatmentSchedule[] => {
     const data = getLocalData();
     const all = safeArr<TreatmentSchedule>(data.treatment_schedules);
@@ -526,7 +520,7 @@ const RootCauseManager: React.FC = () => {
     if (!confirm("Delete this root cause? This action cannot be undone.")) return;
     setManaged((prev) => {
       const next = prev.filter((rc) => rc.id !== id);
-      persistManaged(next); // persist immediately so it "sticks"
+      persistManaged(next);
       return next;
     });
   };
@@ -681,14 +675,9 @@ const RootCauseManager: React.FC = () => {
 
     const next = [rc, ...managed];
     setManaged(next);
-
-    // Make sure it's visible immediately
     setSearch("");
     setActiveCategory("all");
-
-    // Persist immediately so it survives refresh
     persistManaged(next);
-
     setShowNewModal(false);
   };
 
@@ -734,7 +723,7 @@ const RootCauseManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Top Category Chips (click to filter) */}
+        {/* Top Category Chips */}
         <div className="mt-4 flex flex-wrap gap-3">
           <CategoryChip
             label="All"
@@ -951,7 +940,7 @@ const RootCauseManager: React.FC = () => {
                       />
                     </div>
 
-                    {/* Sources (Reddit & User) */}
+                    {/* Sources */}
                     <div className="p-4 rounded-lg border bg-white">
                       <div className="flex items-center gap-2 mb-2">
                         <Link2 className="w-4 h-4 text-blue-600" />
@@ -962,7 +951,7 @@ const RootCauseManager: React.FC = () => {
                       {cases.length === 0 ? (
                         <p className="text-xs text-gray-500">
                           No matching sources found yet. After AI Analysis runs, matching Reddit posts and user
-                          submissions will appear here with links and images for manual review.
+                          submissions will appear here.
                         </p>
                       ) : (
                         <div className="space-y-2">
@@ -971,7 +960,6 @@ const RootCauseManager: React.FC = () => {
                               key={c.id}
                               className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 rounded border bg-gray-50"
                             >
-                              {/* Title + meta */}
                               <div className="md:col-span-7">
                                 <div className="flex items-center gap-2">
                                   {c.source === "reddit" ? (
@@ -989,7 +977,6 @@ const RootCauseManager: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Post link */}
                               <div className="md:col-span-3">
                                 {c.url ? (
                                   <a
@@ -1007,7 +994,6 @@ const RootCauseManager: React.FC = () => {
                                 )}
                               </div>
 
-                              {/* Image link */}
                               <div className="md:col-span-2">
                                 {c.image_url ? (
                                   <a
@@ -1267,11 +1253,7 @@ const RootCauseManager: React.FC = () => {
                                   <Clock className="w-4 h-4" />
                                   <span>{schedule.total_duration}</span>
                                 </div>
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(
-                                    schedule.difficulty_level
-                                  )}`}
-                                >
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(schedule.difficulty_level)}`}>
                                   {schedule.difficulty_level}
                                 </span>
                                 <span>{schedule.steps.length} steps</span>
@@ -1468,7 +1450,11 @@ const Modal: React.FC<{ title: string; onClose: () => void; children: React.Reac
     <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl border">
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
+        <button
+          onClick={onClose}
+          className="p-2 rounded-lg hover:bg-gray-100"
+          aria-label="Close"
+        >
           <X className="w-5 h-5" />
         </button>
       </div>
