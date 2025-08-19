@@ -585,6 +585,13 @@ const AdminDashboard: React.FC = () => {
                           <span>View</span>
                         </button>
                         <button
+                          onClick={() => handleEditSubmission(submission)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        <button
                           onClick={() => setShowDeleteConfirm(submission.id)}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
                         >
