@@ -18,7 +18,10 @@ import {
   Eye,
   ChevronRight,
   Award,
-  RefreshCw
+  RefreshCw,
+  Download,
+  Search,
+  Filter
 } from 'lucide-react';
 
 const RootCauseManager: React.FC = () => {
