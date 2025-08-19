@@ -22,8 +22,7 @@ import {
   Edit,
   Save,
   X,
-  Edit,
-  Save
+  Edit
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
