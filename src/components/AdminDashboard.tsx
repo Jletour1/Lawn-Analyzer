@@ -50,6 +50,98 @@ const AdminDashboard: React.FC = () => {
     loadDashboardData();
   }, []);
 
+  const extractCategoryFromAnalysis = (analysisResult: any) => {
+    if (!analysisResult || !analysisResult.rootCause) {
+      return { category: '', subcategory: '' };
+    }
+    
+    const rootCause = analysisResult.rootCause.toLowerCase();
+    
+    let category = '';
+    let subcategory = '';
+    
+    if (rootCause.includes('fungal') || rootCause.includes('disease') || rootCause.includes('patch') || rootCause.includes('blight')) {
+      category = 'disease';
+      if (rootCause.includes('brown patch')) subcategory = 'Brown Patch';
+      else if (rootCause.includes('dollar spot')) subcategory = 'Dollar Spot';
+      else if (rootCause.includes('rust')) subcategory = 'Rust Disease';
+      else subcategory = 'Fungal Disease';
+    } else if (rootCause.includes('grub') || rootCause.includes('pest') || rootCause.includes('insect') || rootCause.includes('bug')) {
+      category = 'pest';
+      if (rootCause.includes('grub')) subcategory = 'Grubs';
+      else if (rootCause.includes('chinch')) subcategory = 'Chinch Bugs';
+      else subcategory = 'Pest Damage';
+    } else if (rootCause.includes('weed') || rootCause.includes('dandelion') || rootCause.includes('clover') || rootCause.includes('crabgrass')) {
+      category = 'weed';
+      if (rootCause.includes('broadleaf')) subcategory = 'Broadleaf Weeds';
+      else if (rootCause.includes('crabgrass')) subcategory = 'Crabgrass';
+      else subcategory = 'Weed Invasion';
+    } else if (rootCause.includes('drought') || rootCause.includes('water') || rootCause.includes('stress') || rootCause.includes('dog') || rootCause.includes('urine')) {
+      category = 'environmental';
+      if (rootCause.includes('drought')) subcategory = 'Drought Stress';
+      else if (rootCause.includes('overwater')) subcategory = 'Overwatering';
+      else if (rootCause.includes('dog') || rootCause.includes('urine')) subcategory = 'Pet Damage';
+      else subcategory = 'Environmental Stress';
+    } else if (rootCause.includes('mower') || rootCause.includes('fertilizer') || rootCause.includes('maintenance') || rootCause.includes('scalp')) {
+      category = 'maintenance';
+      if (rootCause.includes('mower')) subcategory = 'Mowing Issues';
+      else if (rootCause.includes('fertilizer')) subcategory = 'Fertilizer Burn';
+      else subcategory = 'Maintenance Issue';
+    }
+    
+    return { category, subcategory };
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'disease': return 'bg-red-100 text-red-800';
+      case 'pest': return 'bg-orange-100 text-orange-800';
+      case 'weed': return 'bg-yellow-100 text-yellow-800';
+      case 'environmental': return 'bg-blue-100 text-blue-800';
+      case 'maintenance': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleSaveSubmissionEdit = () => {
+    if (!selectedSubmission) return;
+    
+    const updatedSubmission = {
+      ...selectedSubmission,
+      analysis_result: {
+        ...selectedSubmission.analysis_result,
+        rootCause: editingData.rootCause,
+        confidence: editingData.confidence,
+        healthScore: editingData.healthScore,
+        urgency: editingData.urgency,
+        solutions: editingData.solutions.filter((s: string) => s.trim()),
+        category: editingData.category,
+        subcategory: editingData.subcategory
+      },
+      admin_reviewed: true,
+      reviewed_at: new Date().toISOString()
+    };
+    
+    const localData = getLocalData();
+    const submissionIndex = localData.submissions.findIndex(s => s.id === selectedSubmission.id);
+    if (submissionIndex !== -1) {
+      localData.submissions[submissionIndex] = updatedSubmission;
+      saveLocalData(localData);
+      setSelectedSubmission(updatedSubmission);
+      setIsEditingSubmission(false);
+      loadSubmissions(); // Refresh the list
+    }
+  };
+
+  // Handle the edit button click
+  const handleEditToggle = () => {
+    if (isEditingSubmission) {
+      handleSaveSubmissionEdit();
+    } else {
+      setIsEditingSubmission(true);
+    }
+  };
+
   const loadDashboardData = () => {
     const localData = getLocalData();
     const submissions = localData.submissions || [];
