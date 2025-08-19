@@ -382,6 +382,40 @@ const AdminDashboard: React.FC = () => {
                     <Edit className="w-4 h-4" />
                     <span>Edit Analysis</span>
                   </button>
+                  {!selectedSubmission.admin_reviewed && (
+                    <button
+                      onClick={() => {
+                        updateUserSubmission(selectedSubmission.id, {
+                          admin_reviewed: true,
+                          reviewed_at: new Date().toISOString(),
+                          admin_notes: 'Marked as reviewed by admin'
+                        });
+                        loadData();
+                        setSelectedSubmission(null);
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Mark as Reviewed</span>
+                    </button>
+                  )}
+                  {!selectedSubmission.flagged_for_review && (
+                    <button
+                      onClick={() => {
+                        const reason = prompt('Reason for flagging (optional):') || 'Flagged for expert review';
+                        updateUserSubmission(selectedSubmission.id, {
+                          flagged_for_review: true,
+                          review_reason: reason
+                        });
+                        loadData();
+                        setSelectedSubmission(null);
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Flag for Review</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => setSelectedSubmission(null)}
                     className="text-gray-400 hover:text-gray-600"
