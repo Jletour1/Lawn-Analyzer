@@ -1187,6 +1187,7 @@ const RootCauseManager: React.FC = () => {
                     </span>
                   </div>
                 </div>
+                </>
               )}
 
               {activeTab === 'schedule' && (

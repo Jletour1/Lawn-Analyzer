@@ -294,6 +294,13 @@ export const performMockAnalysis = (submission: LocalUserSubmission): Promise<Mo
       // Adjust confidence based on description quality
       const result = { ...selectedPattern.result };
 
+      // Check for treatment schedules based on root cause
+      const treatmentSchedules = findMatchingTreatmentSchedules(result.rootCause);
+      if (treatmentSchedules.length > 0) {
+        result.treatmentSchedules = treatmentSchedules;
+        console.log('Mock analysis found', treatmentSchedules.length, 'treatment schedules');
+      }
+
       // Boost confidence if we have similar cases
       if (similarCases.length > 0) {
         result.confidence = Math.min(result.confidence * 1.2, 0.95);
