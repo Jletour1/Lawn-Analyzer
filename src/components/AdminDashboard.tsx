@@ -19,7 +19,6 @@ import {
   Leaf,
   Database,
   MessageSquare,
-  Edit,
   Save,
   X,
   Edit
