@@ -30,6 +30,46 @@ export interface MockAnalysisResult {
   categorySuggestions?: CategorySuggestion[];
 }
 
+// Helper function to extract category from analysis result (shared with realAnalysis)
+const getAICategory = (analysisResult: any) => {
+  if (!analysisResult) return { category: 'Unknown', subcategory: null };
+  
+  // Extract category from root cause or solutions
+  const rootCause = analysisResult.rootCause || '';
+  const lowerCause = rootCause.toLowerCase();
+  
+  let category = 'General';
+  let subcategory = null;
+  
+  if (lowerCause.includes('fungal') || lowerCause.includes('disease') || lowerCause.includes('patch')) {
+    category = 'Disease';
+    if (lowerCause.includes('brown patch')) subcategory = 'Brown Patch';
+    else if (lowerCause.includes('dollar spot')) subcategory = 'Dollar Spot';
+    else if (lowerCause.includes('fungal')) subcategory = 'Fungal Disease';
+  } else if (lowerCause.includes('grub') || lowerCause.includes('pest') || lowerCause.includes('insect')) {
+    category = 'Pest';
+    if (lowerCause.includes('grub')) subcategory = 'Grubs';
+    else if (lowerCause.includes('chinch')) subcategory = 'Chinch Bugs';
+  } else if (lowerCause.includes('weed') || lowerCause.includes('dandelion') || lowerCause.includes('clover')) {
+    category = 'Weed';
+    if (lowerCause.includes('broadleaf')) subcategory = 'Broadleaf Weeds';
+    else if (lowerCause.includes('crabgrass')) subcategory = 'Crabgrass';
+  } else if (lowerCause.includes('drought') || lowerCause.includes('water') || lowerCause.includes('stress')) {
+    category = 'Environmental';
+    if (lowerCause.includes('drought')) subcategory = 'Drought Stress';
+    else if (lowerCause.includes('overwater')) subcategory = 'Overwatering';
+  } else if (lowerCause.includes('dog') || lowerCause.includes('urine') || lowerCause.includes('pet')) {
+    category = 'Pet Damage';
+    subcategory = 'Dog Urine Spots';
+  } else if (lowerCause.includes('mower') || lowerCause.includes('fertilizer') || lowerCause.includes('maintenance')) {
+    category = 'Maintenance';
+    if (lowerCause.includes('mower')) subcategory = 'Mowing Issues';
+    else if (lowerCause.includes('fertilizer')) subcategory = 'Fertilizer Burn';
+  }
+  
+  return { category, subcategory };
+};
+
 // Mock analysis patterns based on common lawn problems
 const mockAnalysisPatterns = [
   {

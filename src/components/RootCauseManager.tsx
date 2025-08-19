@@ -1026,10 +1026,7 @@ const RootCauseManager: React.FC = () => {
                         </div>
                       ))}
                       <button
-                       onClick={() => {
-                         setSelectedRootCause(rootCause);
-                         setShowScheduleForm(true);
-                       }}
+                        onClick={() => addSolution(rc.id)}
                         className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
                       >
                         <Plus className="w-4 h-4" />
@@ -1215,7 +1212,10 @@ const RootCauseManager: React.FC = () => {
                       <h5 className="text-lg font-medium text-gray-900 mb-2">No Treatment Schedules</h5>
                       <p className="text-gray-600 mb-4">Create step-by-step treatment schedules for this root cause.</p>
                       <button
-                        onClick={() => setShowScheduleForm(true)}
+                        onClick={() => {
+                          setSelectedRootCause(rc);
+                          setShowScheduleForm(true);
+                        }}
                         className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors mx-auto"
                       >
                         <Plus className="w-5 h-5" />

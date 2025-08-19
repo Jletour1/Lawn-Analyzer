@@ -383,18 +383,25 @@ const findMatchingTreatmentSchedules = (rootCause: string): any[] => {
     const rootCauses = localData.root_causes || [];
     const treatmentSchedules = localData.treatment_schedules || [];
     
-    // Find root cause that matches the AI diagnosis
+    // Extract category and subcategory from AI diagnosis
+    const aiCategory = getAICategory({ rootCause });
+    
+    // Find root cause that matches the AI category/subcategory
     const matchingRootCause = rootCauses.find((rc: any) => {
-      const rcName = rc.name.toLowerCase();
-      const rcDescription = rc.description.toLowerCase();
-      const diagnosisLower = rootCause.toLowerCase();
+      // First try exact name matching
+      if (rc.name.toLowerCase() === aiCategory.category.toLowerCase()) {
+        return true;
+      }
       
-      // Check if diagnosis contains root cause name or key terms
-      return diagnosisLower.includes(rcName) || 
-             rcName.includes(diagnosisLower.split(' ')[0]) ||
-             rc.visual_indicators.some((indicator: string) => 
-               diagnosisLower.includes(indicator.toLowerCase())
-             );
+      // Then try subcategory matching if it exists
+      if (aiCategory.subcategory && rc.name.toLowerCase().includes(aiCategory.subcategory.toLowerCase())) {
+        return true;
+      }
+      
+      // Finally try visual indicator matching
+      return rc.visual_indicators && rc.visual_indicators.some((indicator: string) => 
+        rootCause.toLowerCase().includes(indicator.toLowerCase())
+      );
     });
     
     if (matchingRootCause) {
@@ -403,10 +410,11 @@ const findMatchingTreatmentSchedules = (rootCause: string): any[] => {
         schedule.root_cause_id === matchingRootCause.id
       );
       
-      console.log('Found matching root cause:', matchingRootCause.name, 'with', schedules.length, 'schedules');
+      console.log('Found matching root cause:', matchingRootCause.name, 'for AI category:', aiCategory.category, aiCategory.subcategory, 'with', schedules.length, 'schedules');
       return schedules;
     }
     
+    console.log('No matching root cause found for AI category:', aiCategory.category, aiCategory.subcategory);
     return [];
   } catch (error) {
     console.error('Error finding treatment schedules:', error);
