@@ -1142,25 +1142,12 @@ const AdminDashboard: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">Submission Details</h3>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setIsEditingSubmission(!isEditingSubmission)}
-                    className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      isEditingSubmission 
-                        ? 'bg-green-600 text-white hover:bg-green-700' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>{isEditingSubmission ? 'Save Changes' : 'Edit Analysis'}</span>
-                  </button>
-                  <button
-                    onClick={() => setSelectedSubmission(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setSelectedSubmission(null)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1194,7 +1181,18 @@ const AdminDashboard: React.FC = () => {
                         <div>
                           <label className="block text-sm font-medium text-gray-400 mb-1">Grass Type</label>
                           <p className="text-white">{selectedSubmission.grass_type}</p>
-                        </div>
+                        {isEditingSubmission ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={Math.round(editingData.confidence * 100)}
+                            onChange={(e) => setEditingData(prev => ({ ...prev, confidence: parseInt(e.target.value) / 100 }))}
+                            className="ml-2 w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        ) : (
+                          <span className="ml-2 text-gray-800">{Math.round(editingData.confidence * 100)}%</span>
+                        )}
                       )}
                       
                       {selectedSubmission.location && (
@@ -1241,7 +1239,18 @@ const AdminDashboard: React.FC = () => {
                     {!selectedSubmission.admin_reviewed && (
                       <div>
                         <button
-                          onClick={() => handleMarkReviewed(selectedSubmission.id, 'Reviewed by admin')}
+                        {isEditingSubmission ? (
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={editingData.healthScore}
+                            onChange={(e) => setEditingData(prev => ({ ...prev, healthScore: parseInt(e.target.value) }))}
+                            className="ml-2 w-16 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        ) : (
+                          <span className="ml-2 text-gray-800">{editingData.healthScore}/10</span>
+                        )}
                           className="flex items-center space-x-2 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
                           <CheckCircle className="w-4 h-4" />
@@ -1251,9 +1260,21 @@ const AdminDashboard: React.FC = () => {
                     )}
                     
                     <div>
-                      <button
-                        onClick={() => handleFlagSubmission(selectedSubmission.id, 'Flagged for expert review')}
-                        className="flex items-center space-x-2 w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                        {isEditingSubmission ? (
+                          <select
+                            value={editingData.urgency}
+                            onChange={(e) => setEditingData(prev => ({ ...prev, urgency: e.target.value }))}
+                            className="ml-2 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                        ) : (
+                          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(editingData.urgency)}`}>
+                            {editingData.urgency}
+                          </span>
+                        )}
                       >
                         <Flag className="w-4 h-4" />
                         <span>Flag for Review</span>
