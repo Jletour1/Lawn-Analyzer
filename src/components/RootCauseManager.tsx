@@ -1044,7 +1044,11 @@ const RootCauseManager: React.FC = () => {
                           </div>
                         ))}
                         <button
-                          onClick={() => addSolution(rc.id)}
+                          onClick={() => {
+                            console.log('Add Schedule clicked for:', rootCause.name);
+                            setSelectedRootCause(rootCause);
+                            setShowScheduleForm(true);
+                          }}
                           className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
                         >
                           <Plus className="w-4 h-4" />
@@ -1053,7 +1057,11 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* AI-Found Products */}
+                        onClick={() => {
+                          console.log('Create First Schedule clicked for:', rootCause.name);
+                          setSelectedRootCause(rootCause);
+                          setShowScheduleForm(true);
+                        }}
                     <div className="p-4 rounded-lg border bg-white">
                       <div className="flex items-center gap-2 mb-2">
                         <Package className="w-4 h-4 text-emerald-600" />
