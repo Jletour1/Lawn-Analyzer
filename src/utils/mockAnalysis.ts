@@ -198,13 +198,6 @@ const mockAnalysisPatterns = [
     }
   }
 
-      // Check for treatment schedules based on root cause
-      const treatmentSchedules = findMatchingTreatmentSchedules(result.rootCause);
-      if (treatmentSchedules.length > 0) {
-        result.treatmentSchedules = treatmentSchedules;
-        console.log('Mock analysis found', treatmentSchedules.length, 'treatment schedules');
-      }
-
 ];
 
 export const performMockAnalysis = (submission: LocalUserSubmission): Promise<MockAnalysisResult> => {
