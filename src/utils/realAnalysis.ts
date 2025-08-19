@@ -112,6 +112,67 @@ Output a JSON object with the following structure:
 
 Be thorough, professional, and prioritize lawn health and safety.`;
 
+// Helper function to extract category from analysis result (enhanced for better matching)
+const getAICategory = (analysisResult: any) => {
+  if (!analysisResult) return { category: 'Unknown', subcategory: null };
+  
+  // Extract category from root cause or solutions
+  const rootCause = analysisResult.rootCause || '';
+  const lowerCause = rootCause.toLowerCase();
+  
+  let category = 'environmental'; // default category
+  let subcategory = null;
+  
+  // Disease patterns
+  if (lowerCause.includes('fungal') || lowerCause.includes('disease') || lowerCause.includes('patch') || 
+      lowerCause.includes('blight') || lowerCause.includes('rot') || lowerCause.includes('mold')) {
+    category = 'disease';
+    if (lowerCause.includes('brown patch')) subcategory = 'Brown Patch';
+    else if (lowerCause.includes('dollar spot')) subcategory = 'Dollar Spot';
+    else if (lowerCause.includes('fungal')) subcategory = 'Fungal Disease';
+    else if (lowerCause.includes('rust')) subcategory = 'Rust Disease';
+  } 
+  // Pest patterns
+  else if (lowerCause.includes('grub') || lowerCause.includes('pest') || lowerCause.includes('insect') || 
+           lowerCause.includes('bug') || lowerCause.includes('larvae') || lowerCause.includes('chinch')) {
+    category = 'pest';
+    if (lowerCause.includes('grub')) subcategory = 'Grubs';
+    else if (lowerCause.includes('chinch')) subcategory = 'Chinch Bugs';
+    else if (lowerCause.includes('armyworm')) subcategory = 'Armyworms';
+  } 
+  // Weed patterns
+  else if (lowerCause.includes('weed') || lowerCause.includes('dandelion') || lowerCause.includes('clover') || 
+           lowerCause.includes('crabgrass') || lowerCause.includes('invasive')) {
+    category = 'weed';
+    if (lowerCause.includes('broadleaf')) subcategory = 'Broadleaf Weeds';
+    else if (lowerCause.includes('crabgrass')) subcategory = 'Crabgrass';
+    else if (lowerCause.includes('dandelion')) subcategory = 'Dandelions';
+  } 
+  // Environmental patterns
+  else if (lowerCause.includes('drought') || lowerCause.includes('water') || lowerCause.includes('stress') || 
+           lowerCause.includes('heat') || lowerCause.includes('cold') || lowerCause.includes('shade')) {
+    category = 'environmental';
+    if (lowerCause.includes('drought')) subcategory = 'Drought Stress';
+    else if (lowerCause.includes('overwater')) subcategory = 'Overwatering';
+    else if (lowerCause.includes('shade')) subcategory = 'Shade Issues';
+  } 
+  // Pet damage patterns
+  else if (lowerCause.includes('dog') || lowerCause.includes('urine') || lowerCause.includes('pet')) {
+    category = 'environmental'; // Pet damage is often categorized as environmental
+    subcategory = 'Pet Damage';
+  } 
+  // Maintenance patterns
+  else if (lowerCause.includes('mower') || lowerCause.includes('fertilizer') || lowerCause.includes('maintenance') || 
+           lowerCause.includes('scalp') || lowerCause.includes('burn')) {
+    category = 'maintenance';
+    if (lowerCause.includes('mower')) subcategory = 'Mowing Issues';
+    else if (lowerCause.includes('fertilizer')) subcategory = 'Fertilizer Burn';
+    else if (lowerCause.includes('scalp')) subcategory = 'Scalping';
+  }
+  
+  return { category, subcategory };
+};
+
 export const performRealAnalysis = async (submission: LocalUserSubmission): Promise<RealAnalysisResult> => {
   console.log('performRealAnalysis called with API key:', !!config.openai.apiKey);
   console.log('API key starts with:', config.openai.apiKey?.substring(0, 10));

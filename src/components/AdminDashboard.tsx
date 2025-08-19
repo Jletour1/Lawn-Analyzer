@@ -19,6 +19,9 @@ import {
   Leaf,
   Database,
   MessageSquare
+  Edit,
+  Save,
+  X
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
@@ -40,6 +43,8 @@ const AdminDashboard: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedForDeletion, setSelectedForDeletion] = useState<Set<string>>(new Set());
+  const [editingSubmission, setEditingSubmission] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState<any>({});
 
   useEffect(() => {
     loadDashboardData();
@@ -105,6 +110,102 @@ const AdminDashboard: React.FC = () => {
     loadDashboardData();
     setShowDeleteConfirm(null);
     setSelectedSubmission(null);
+  };
+
+  const handleEditSubmission = (submission: any) => {
+    setEditingSubmission(submission);
+    setEditFormData({
+      user_email: submission.user_email || '',
+      user_name: submission.user_name || '',
+      problem_description: submission.problem_description || '',
+      grass_type: submission.grass_type || '',
+      location: submission.location || '',
+      season: submission.season || 'spring',
+      analysis_result: {
+        rootCause: submission.analysis_result?.rootCause || '',
+        confidence: submission.analysis_result?.confidence || 0.5,
+        solutions: submission.analysis_result?.solutions || [],
+        healthScore: submission.analysis_result?.healthScore || 5,
+        urgency: submission.analysis_result?.urgency || 'medium',
+        difficulty: submission.analysis_result?.difficulty || 'intermediate',
+        costEstimate: submission.analysis_result?.costEstimate || '',
+        timeline: submission.analysis_result?.timeline || '',
+        category: getAICategory(submission.analysis_result).category,
+        subcategory: getAICategory(submission.analysis_result).subcategory || ''
+      }
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingSubmission) return;
+
+    const localData = getLocalData();
+    const submissionIndex = localData.submissions?.findIndex((sub: any) => sub.id === editingSubmission.id);
+    
+    if (submissionIndex !== undefined && submissionIndex >= 0 && localData.submissions) {
+      // Update the submission with edited data
+      localData.submissions[submissionIndex] = {
+        ...localData.submissions[submissionIndex],
+        user_email: editFormData.user_email,
+        user_name: editFormData.user_name,
+        problem_description: editFormData.problem_description,
+        grass_type: editFormData.grass_type,
+        location: editFormData.location,
+        season: editFormData.season,
+        analysis_result: {
+          ...localData.submissions[submissionIndex].analysis_result,
+          rootCause: editFormData.analysis_result.rootCause,
+          confidence: parseFloat(editFormData.analysis_result.confidence),
+          solutions: editFormData.analysis_result.solutions,
+          healthScore: parseInt(editFormData.analysis_result.healthScore),
+          urgency: editFormData.analysis_result.urgency,
+          difficulty: editFormData.analysis_result.difficulty,
+          costEstimate: editFormData.analysis_result.costEstimate,
+          timeline: editFormData.analysis_result.timeline
+        },
+        admin_reviewed: true,
+        reviewed_at: new Date().toISOString()
+      };
+      
+      saveLocalData(localData);
+      loadDashboardData();
+      setEditingSubmission(null);
+      setEditFormData({});
+      
+      console.log('Updated submission:', editingSubmission.id);
+    }
+  };
+
+  const addSolution = () => {
+    setEditFormData(prev => ({
+      ...prev,
+      analysis_result: {
+        ...prev.analysis_result,
+        solutions: [...prev.analysis_result.solutions, '']
+      }
+    }));
+  };
+
+  const updateSolution = (index: number, value: string) => {
+    setEditFormData(prev => ({
+      ...prev,
+      analysis_result: {
+        ...prev.analysis_result,
+        solutions: prev.analysis_result.solutions.map((sol: string, i: number) => 
+          i === index ? value : sol
+        )
+      }
+    }));
+  };
+
+  const removeSolution = (index: number) => {
+    setEditFormData(prev => ({
+      ...prev,
+      analysis_result: {
+        ...prev.analysis_result,
+        solutions: prev.analysis_result.solutions.filter((_: string, i: number) => i !== index)
+      }
+    }));
   };
 
   const handleBulkDelete = () => {
@@ -608,6 +709,13 @@ const AdminDashboard: React.FC = () => {
                       >
                         <Eye className="w-4 h-4" />
                         <span>View</span>
+                      </button>
+                      <button
+                        onClick={() => handleEditSubmission(submission)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
                       </button>
                     </div>
                   </div>
