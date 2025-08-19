@@ -1,1228 +1,601 @@
-// src/components/RootCauseManager.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  getLocalData,
-  saveLocalData,
-  exportDataAsJSON,
-} from "../utils/localStorage";
+import React, { useState, useEffect } from 'react';
+import { getLocalData, saveLocalData } from '../utils/localStorage';
+import { RootCause, TreatmentSchedule, TreatmentScheduleStep } from '../types';
 import {
   Database,
-  Save,
   Plus,
+  Edit,
+  Trash2,
+  Save,
   X,
-  RefreshCw,
-  ExternalLink,
-  Search,
-  Filter,
-  Wand2,
-  BadgeCheck,
-  Tag,
-  Package,
-  BookOpen,
-  CheckCircle2,
-  Link2,
-  Image as ImageIcon,
-  User,
-  MessageSquare,
-  Clock,
   CheckCircle,
-} from "lucide-react";
+  AlertTriangle,
+  Calendar,
+  Clock,
+  Target,
+  Leaf,
+  Brain,
+  Eye,
+  ChevronRight,
+  Award
+} from 'lucide-react';
 
-/* =========================================================================
-   Types
-   ========================================================================= */
-export type RootCauseCategory =
-  | "grubs"
-  | "overwatering"
-  | "fungus"
-  | "drought"
-  | "weeds"
-  | "nutrient_deficiency"
-  | "soil_compaction"
-  | "mowing_damage"
-  | "pet_damage"
-  | "disease"
-  | "other";
-
-export interface ManagedProduct {
-  id: string;
-  name: string;
-  category: string;
-  price?: number;
-  affiliate_link?: string;
-  confidence?: number;
-  context?: string;
-  active?: boolean;
-}
-
-export interface ManagedRootCause {
-  id: string;
-  name: string;
-  category: RootCauseCategory | string; // allow legacy/unknown
-  subcategory?: string;
-  description?: string;
-  confidence_threshold?: number;
-  success_rate?: number;
-  products: ManagedProduct[];
-  standard_solutions?: string[];
-  ai_products?: ManagedProduct[];
-  case_count?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-/* Source case used for review links */
-type SourceCase = {
-  id: string;
-  source: "reddit" | "user";
-  title: string;
-  url?: string | null;
-  image_url?: string | null;
-  subreddit?: string | null;
-  created_at?: string | null;
-};
-
-/* ---- Treatment Schedule Types ---- */
-type DifficultyLevel = "easy" | "medium" | "hard";
-
-type TreatmentStep = {
-  title: string;
-  instructions?: string;
-  wait_time?: string;
-};
-
-type TreatmentSchedule = {
-  id: string;
-  root_cause_id: string;
-  name: string;
-  description?: string;
-  total_duration?: string;
-  difficulty_level: DifficultyLevel;
-  steps: TreatmentStep[];
-  success_indicators: string[];
-};
-
-/* =========================================================================
-   Category config
-   ========================================================================= */
-const CATEGORY_CONFIG: Record<
-  RootCauseCategory,
-  { color: string; chip: string; icon: string; label: string }
-> = {
-  grubs: {
-    color: "bg-red-50 text-red-800 border-red-200",
-    chip: "bg-red-100 text-red-800",
-    icon: "🪲",
-    label: "Grubs & Insects",
-  },
-  overwatering: {
-    color: "bg-blue-50 text-blue-800 border-blue-200",
-    chip: "bg-blue-100 text-blue-800",
-    icon: "💧",
-    label: "Overwatering",
-  },
-  fungus: {
-    color: "bg-purple-50 text-purple-800 border-purple-200",
-    chip: "bg-purple-100 text-purple-800",
-    icon: "🍄",
-    label: "Fungal Disease",
-  },
-  drought: {
-    color: "bg-yellow-50 text-yellow-800 border-yellow-200",
-    chip: "bg-yellow-100 text-yellow-800",
-    icon: "☀️",
-    label: "Drought Stress",
-  },
-  weeds: {
-    color: "bg-green-50 text-green-800 border-green-200",
-    chip: "bg-green-100 text-green-800",
-    icon: "🌿",
-    label: "Weeds",
-  },
-  nutrient_deficiency: {
-    color: "bg-orange-50 text-orange-800 border-orange-200",
-    chip: "bg-orange-100 text-orange-800",
-    icon: "🧪",
-    label: "Nutrient Issues",
-  },
-  soil_compaction: {
-    color: "bg-gray-50 text-gray-800 border-gray-200",
-    chip: "bg-gray-100 text-gray-800",
-    icon: "🗿",
-    label: "Soil Compaction",
-  },
-  mowing_damage: {
-    color: "bg-indigo-50 text-indigo-800 border-indigo-200",
-    chip: "bg-indigo-100 text-indigo-800",
-    icon: "✂️",
-    label: "Mowing Damage",
-  },
-  pet_damage: {
-    color: "bg-pink-50 text-pink-800 border-pink-200",
-    chip: "bg-pink-100 text-pink-800",
-    icon: "🐕",
-    label: "Pet Damage",
-  },
-  disease: {
-    color: "bg-rose-50 text-rose-800 border-rose-200",
-    chip: "bg-rose-100 text-rose-800",
-    icon: "🦠",
-    label: "Disease",
-  },
-  other: {
-    color: "bg-slate-50 text-slate-800 border-slate-200",
-    chip: "bg-slate-100 text-slate-800",
-    icon: "❓",
-    label: "Other Issues",
-  },
-};
-
-/* =========================================================================
-   Utilities + normalization
-   ========================================================================= */
-const safeArr = <T,>(v: unknown, fb: T[] = []): T[] => (Array.isArray(v) ? (v as T[]) : fb);
-const titleCase = (s?: string) =>
-  s ? s.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase()) : "";
-
-const htmlUnescape = (u?: string) => (u ? u.replace(/&amp;/g, "&") : u || "");
-const getRedditImageFromData = (rd: any): string | null => {
-  if (!rd) return null;
-  try {
-    const p0 = rd?.preview?.images?.[0]?.source?.url;
-    if (typeof p0 === "string") return htmlUnescape(p0);
-  } catch {}
-  try {
-    const mm = rd?.media_metadata;
-    if (mm && typeof mm === "object") {
-      const k = Object.keys(mm)[0];
-      const meta = k ? mm[k] : null;
-      const su = meta?.s?.u || meta?.p?.[meta?.p?.length - 1]?.u;
-      if (typeof su === "string") return htmlUnescape(su);
-    }
-  } catch {}
-  if (typeof rd?.url_overridden_by_dest === "string" && /^https?:\/\//.test(rd.url_overridden_by_dest))
-    return htmlUnescape(rd.url_overridden_by_dest);
-  if (typeof rd?.url === "string" && /^https?:\/\//.test(rd.url)) return htmlUnescape(rd.url);
-  if (typeof rd?.thumbnail === "string" && /^https?:\/\//.test(rd.thumbnail)) return htmlUnescape(rd.thumbnail);
-  return null;
-};
-
-const normalizeCategory = (raw: any): RootCauseCategory => {
-  const s = String(raw || "").toLowerCase().trim();
-  if ((CATEGORY_CONFIG as any)[s]) return s as RootCauseCategory;
-  if (s.includes("weed")) return "weeds";
-  if (s.includes("fung")) return "fungus";
-  if (s.includes("overwater") || s.includes("waterlog") || s === "water") return "overwatering";
-  if (s.includes("drought") || s.includes("heat") || s.includes("dry")) return "drought";
-  if (s.includes("grub") || s.includes("pest") || s.includes("bug") || s.includes("insect")) return "grubs";
-  if (s.includes("nutri")) return "nutrient_deficiency";
-  if (s.includes("soil") || s.includes("compact") || s.includes("thatch")) return "soil_compaction";
-  if (s.includes("mow") || s.includes("scalp") || s.includes("mechanic")) return "mowing_damage";
-  if (s.includes("pet") || s.includes("urine") || s.includes("dog")) return "pet_damage";
-  if (s.includes("disease")) return "disease";
-  return "other";
-};
-
-const getDifficultyColor = (difficulty: string) => {
-  switch (difficulty) {
-    case "easy":
-      return "bg-green-100 text-green-800";
-    case "medium":
-      return "bg-yellow-100 text-yellow-800";
-    case "hard":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
-
-/* =========================================================================
-   Component
-   ========================================================================= */
 const RootCauseManager: React.FC = () => {
-  const [managed, setManaged] = useState<ManagedRootCause[]>([]);
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<RootCauseCategory | "all">("all");
-  const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "schedule">("overview");
+  const [rootCauses, setRootCauses] = useState<RootCause[]>([]);
+  const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
+  const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedules'>('overview');
+  const [showForm, setShowForm] = useState(false);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<TreatmentSchedule | null>(null);
+  const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<TreatmentSchedule | null>(null);
 
-  // ✅ Fix for ReferenceError
-  const [selectedRootCause, setSelectedRootCause] = useState<ManagedRootCause | null>(null);
-
-  // raw data for building Sources section
-  const [analyses, setAnalyses] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-
-  // New RC Modal
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [newForm, setNewForm] = useState<Partial<ManagedRootCause>>({
-    name: "",
-    category: "other",
-    subcategory: "",
-    description: "",
+  const [formData, setFormData] = useState({
+    name: '',
+    category: 'disease' as RootCause['category'],
+    description: '',
+    visual_indicators: [''],
+    standard_solutions: [''],
+    standard_recommendations: [''],
     confidence_threshold: 0.7,
-    success_rate: 0.6,
+    seasonal_factors: ['']
   });
 
-  /* ---------------------- Load ---------------------- */
+  const [scheduleFormData, setScheduleFormData] = useState({
+    name: '',
+    description: '',
+    total_duration: '',
+    difficulty_level: 'intermediate' as 'beginner' | 'intermediate' | 'expert',
+    steps: [] as TreatmentScheduleStep[],
+    success_indicators: ['']
+  });
+
   useEffect(() => {
-    const data = getLocalData();
-
-    const list: ManagedRootCause[] = Array.isArray(data.managed_root_causes)
-      ? data.managed_root_causes
-      : [];
-    const normalized = list.map((rc) => ({
-      ...rc,
-      category: normalizeCategory(rc.category),
-      products: safeArr(rc.products),
-      standard_solutions: safeArr(rc.standard_solutions),
-      ai_products: safeArr(rc.ai_products),
-    }));
-    setManaged(normalized);
-
-    setAnalyses(safeArr<any>(data.analyzed_posts));
-    setSubmissions(safeArr<any>(data.submissions));
+    loadRootCauses();
   }, []);
 
-  /* ---------------------- Helpers ---------------------- */
-  const persistManaged = (next: ManagedRootCause[]) => {
-    const data = getLocalData();
-    data.managed_root_causes = next.map((rc) => ({
-      ...rc,
-      category: normalizeCategory(rc.category),
-      products: rc.products || [],
-      standard_solutions: rc.standard_solutions || [],
-      ai_products: rc.ai_products || [],
-    }));
-    saveLocalData(data);
+  const loadRootCauses = () => {
+    const localData = getLocalData();
+    const causes = localData.root_causes || [];
+    const schedules = localData.treatment_schedules || [];
+    setRootCauses(causes);
+    setTreatmentSchedules(schedules);
   };
 
-  // (Ready for future create/edit)
-  const persistSchedules = (schedules: TreatmentSchedule[]) => {
-    const data = getLocalData();
-    data.treatment_schedules = schedules;
-    saveLocalData(data);
-  };
-
-  // Counts for chips (normalized)
-  const categoryCounts = useMemo(() => {
-    const counts: Record<RootCauseCategory, number> = {
-      grubs: 0,
-      overwatering: 0,
-      fungus: 0,
-      drought: 0,
-      weeds: 0,
-      nutrient_deficiency: 0,
-      soil_compaction: 0,
-      mowing_damage: 0,
-      pet_damage: 0,
-      disease: 0,
-      other: 0,
-    };
-    for (const rc of managed) counts[normalizeCategory(rc.category)]++;
-    return counts;
-  }, [managed]);
-
-  // Read schedules from localStorage and filter by root cause
-  const getSchedulesForRootCause = (rootCauseId: string): TreatmentSchedule[] => {
-    const data = getLocalData();
-    const all = safeArr<TreatmentSchedule>(data.treatment_schedules);
-    return all.filter((s) => s.root_cause_id === rootCauseId);
-  };
-
-  /* ---------------------- Sync from AI ---------------------- */
-  const syncFromAI = () => {
-    const data = getLocalData();
-    const aiList: any[] = Array.isArray(data.root_causes) ? data.root_causes : [];
-    if (aiList.length === 0) {
-      alert("No AI root causes found. Run AI Analysis first.");
-      return;
+  const handleSaveRootCause = () => {
+    const localData = getLocalData();
+    if (!localData.root_causes) {
+      localData.root_causes = [];
     }
 
-    const clone = [...managed];
-
-    for (const ai of aiList) {
-      const cat = normalizeCategory(ai.category || ai.root_cause_category || "other");
-      const sub = ai.subcategory || ai.root_cause_subcategory || undefined;
-
-      let idx = clone.findIndex(
-        (m) =>
-          normalizeCategory(m.category) === cat &&
-          (m.subcategory || "").toLowerCase() === (sub || "").toLowerCase()
-      );
-      if (idx < 0 && ai.name) {
-        idx = clone.findIndex(
-          (m) => (m.name || "").toLowerCase() === (ai.name || "").toLowerCase()
-        );
-      }
-
-      const aiProducts: ManagedProduct[] = (ai.products || ai.products_mentioned || [])
-        .filter(Boolean)
-        .slice(0, 10)
-        .map((p: any, i: number) => ({
-          id: `ai_${ai.id || "rc"}_${i}`,
-          name: p.name || "Unknown Product",
-          category: p.category || "General",
-          affiliate_link: p.affiliate_link || "",
-          confidence: typeof p.confidence === "number" ? p.confidence : 0.7,
-          context:
-            p.context || `Found in AI results for ${titleCase(sub || ai.name || "root cause")}`,
-          active: true,
-        }));
-
-      if (idx >= 0) {
-        const curr = { ...clone[idx] };
-        curr.name = curr.name || ai.name || titleCase(sub || "Root Cause");
-        curr.description =
-          curr.description || ai.description || ai.standard_root_cause || "";
-        curr.standard_solutions = Array.from(
-          new Set([...(curr.standard_solutions || []), ...(ai.standard_solutions || [])])
-        );
-        const existingNames = new Set(
-          (curr.ai_products || []).map((p) => (p.name || "").toLowerCase())
-        );
-        curr.ai_products = (curr.ai_products || []).concat(
-          aiProducts.filter((p) => !existingNames.has((p.name || "").toLowerCase()))
-        );
-        curr.case_count = Math.max(curr.case_count || 0, ai.case_count || 0);
-        curr.success_rate =
-          typeof ai.success_rate === "number" ? ai.success_rate : curr.success_rate;
-        curr.updated_at = new Date().toISOString();
-        curr.category = normalizeCategory(curr.category);
-
-        clone[idx] = curr;
-      } else {
-        const newItem: ManagedRootCause = {
-          id: `managed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: ai.name || titleCase(sub || "Root Cause"),
-          category: cat,
-          subcategory: sub,
-          description: ai.description || ai.standard_root_cause || "",
-          confidence_threshold:
-            typeof ai.confidence_threshold === "number" ? ai.confidence_threshold : 0.7,
-          success_rate: typeof ai.success_rate === "number" ? ai.success_rate : 0.6,
-          products: [],
-          standard_solutions: (ai.standard_solutions || []).slice(0, 6),
-          ai_products: aiProducts,
-          case_count: ai.case_count || 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        clone.push(newItem);
-      }
-    }
-
-    setManaged(clone);
-    persistManaged(clone);
-    alert("AI knowledge synced! (Merged into your managed list)");
-  };
-
-  /* ---------------------- Save All ---------------------- */
-  const saveAll = async () => {
-    setSaving(true);
-    try {
-      persistManaged(managed);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  /* ---------------------- Filters ---------------------- */
-  const filtered = useMemo(() => {
-    let arr = managed.map((rc) => ({ ...rc, category: normalizeCategory(rc.category) }));
-    if (activeCategory !== "all") {
-      arr = arr.filter((r) => normalizeCategory(r.category) === activeCategory);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      arr = arr.filter(
-        (r) =>
-          (r.name || "").toLowerCase().includes(q) ||
-          (r.subcategory || "").toLowerCase().includes(q) ||
-          (r.description || "").toLowerCase().includes(q)
-      );
-    }
-    return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [managed, activeCategory, search]);
-
-  /* ---------------------- Build Sources ---------------------- */
-  const findCasesForRC = (rc: ManagedRootCause): SourceCase[] => {
-    const cat = normalizeCategory(rc.category);
-    const sub = (rc.subcategory || "").toLowerCase();
-
-    const redditCases: SourceCase[] = safeArr<any>(analyses)
-      .filter((a) => {
-        const aCat = normalizeCategory(a.root_cause_category || a.category || "other");
-        const aSub = (a.root_cause_subcategory || a.primary_issue || "").toLowerCase();
-        const categoryMatch = aCat === cat;
-        const subMatch = sub ? aSub === sub : true;
-        return categoryMatch && subMatch;
-      })
-      .slice(0, 12)
-      .map((a) => ({
-        id: a.id || a.post_id || `a_${Math.random().toString(36).slice(2, 8)}`,
-        source: "reddit",
-        title: a.reddit_data?.title || "Reddit post",
-        url: a.reddit_data?.url || a.reddit_url || null,
-        image_url: a.image_analysis?.image_url || getRedditImageFromData(a.reddit_data),
-        subreddit: a.reddit_data?.subreddit || null,
-        created_at: a.analyzed_at || null,
-      }));
-
-    const userCases: SourceCase[] = safeArr<any>(submissions)
-      .filter((s) => {
-        const a = s.analysis || {};
-        const aCat = normalizeCategory(a.root_cause_category || a.category || "other");
-        const aSub = (a.root_cause_subcategory || a.primary_issue || "").toLowerCase();
-        const categoryMatch = aCat === cat;
-        const subMatch = sub ? aSub === sub : true;
-        return categoryMatch && subMatch;
-      })
-      .slice(0, 12)
-      .map((s) => ({
-        id: s.id || `u_${Math.random().toString(36).slice(2, 8)}`,
-        source: "user",
-        title: s.problem_description || "User submission",
-        url: null,
-        image_url:
-          s.image_url ||
-          s.image_path ||
-          s.image_data ||
-          s.analysis?.image_analysis?.image_url ||
-          null,
-        subreddit: null,
-        created_at: s.created_at || null,
-      }));
-
-    return [...redditCases, ...userCases].slice(0, 12);
-  };
-
-  /* ---------------------- Mutations ---------------------- */
-  const updateRC = (id: string, patch: Partial<ManagedRootCause>) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === id
-          ? {
-              ...rc,
-              ...patch,
-              category:
-                "category" in patch ? normalizeCategory((patch as any).category) : rc.category,
-              updated_at: new Date().toISOString(),
-            }
-          : rc
-      )
-    );
-  };
-
-  const deleteRC = (id: string) => {
-    if (!confirm("Delete this root cause? This action cannot be undone.")) return;
-    setManaged((prev) => {
-      const next = prev.filter((rc) => rc.id !== id);
-      persistManaged(next);
-      return next;
-    });
-  };
-
-  const addManagedProduct = (id: string) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === id
-          ? {
-              ...rc,
-              products: [
-                ...(rc.products || []),
-                {
-                  id: `prod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                  name: "New Product",
-                  category: "General",
-                  affiliate_link: "",
-                  confidence: 1,
-                  active: true,
-                },
-              ],
-            }
-          : rc
-      )
-    );
-  };
-
-  const updateManagedProduct = (rcId: string, productId: string, patch: Partial<ManagedProduct>) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId
-          ? {
-              ...rc,
-              products: (rc.products || []).map((p) => (p.id === productId ? { ...p, ...patch } : p)),
-            }
-          : rc
-      )
-    );
-  };
-
-  const removeManagedProduct = (rcId: string, productId: string) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId ? { ...rc, products: (rc.products || []).filter((p) => p.id !== productId) } : rc
-      )
-    );
-  };
-
-  const updateAIProduct = (rcId: string, productId: string, patch: Partial<ManagedProduct>) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId
-          ? {
-              ...rc,
-              ai_products: (rc.ai_products || []).map((p) => (p.id === productId ? { ...p, ...patch } : p)),
-            }
-          : rc
-      )
-    );
-  };
-
-  const removeAIProduct = (rcId: string, productId: string) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId ? { ...rc, ai_products: (rc.ai_products || []).filter((p) => p.id !== productId) } : rc
-      )
-    );
-  };
-
-  const promoteAIProduct = (rcId: string, product: ManagedProduct) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId
-          ? {
-              ...rc,
-              products: [
-                ...(rc.products || []),
-                { ...product, id: `prod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` },
-              ],
-            }
-          : rc
-      )
-    );
-  };
-
-  const addSolution = (rcId: string) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId ? { ...rc, standard_solutions: [...(rc.standard_solutions || []), ""] } : rc
-      )
-    );
-  };
-
-  const updateSolution = (rcId: string, idx: number, value: string) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId
-          ? {
-              ...rc,
-              standard_solutions: (rc.standard_solutions || []).map((s, i) => (i === idx ? value : s)),
-            }
-          : rc
-      )
-    );
-  };
-
-  const removeSolution = (rcId: string, idx: number) => {
-    setManaged((prev) =>
-      prev.map((rc) =>
-        rc.id === rcId
-          ? { ...rc, standard_solutions: (rc.standard_solutions || []).filter((_, i) => i !== idx) }
-          : rc
-      )
-    );
-  };
-
-  /* ---------------------- New RC Modal handlers ---------------------- */
-  const openNewModal = () => {
-    setNewForm({
-      name: "",
-      category: "other",
-      subcategory: "",
-      description: "",
-      confidence_threshold: 0.7,
-      success_rate: 0.6,
-    });
-    setShowNewModal(true);
-  };
-
-  const createFromModal = () => {
-    const name = (newForm.name || "").trim();
-    if (!name) {
-      alert("Please enter a name for the root cause.");
-      return;
-    }
-
-    const rc: ManagedRootCause = {
-      id: `managed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name,
-      category: normalizeCategory(newForm.category || "other"),
-      subcategory: (newForm.subcategory || "").trim() || undefined,
-      description: newForm.description || "",
-      confidence_threshold:
-        typeof newForm.confidence_threshold === "number" ? newForm.confidence_threshold : 0.7,
-      success_rate: typeof newForm.success_rate === "number" ? newForm.success_rate : 0.6,
+    const rootCause: RootCause = {
+      id: editingRootCause?.id || `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: formData.name,
+      category: formData.category,
+      description: formData.description,
+      visual_indicators: formData.visual_indicators.filter(vi => vi.trim()),
+      standard_root_cause: formData.description,
+      standard_solutions: formData.standard_solutions.filter(s => s.trim()),
+      standard_recommendations: formData.standard_recommendations.filter(r => r.trim()),
       products: [],
-      standard_solutions: [],
-      ai_products: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      confidence_threshold: formData.confidence_threshold,
+      success_rate: 0.8,
+      case_count: 0,
+      seasonal_factors: formData.seasonal_factors.filter(sf => sf.trim()),
+      created_at: editingRootCause?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    const next = [rc, ...managed];
-    setManaged(next);
-    setSearch("");
-    setActiveCategory("all");
-    persistManaged(next);
-    setShowNewModal(false);
+    if (editingRootCause) {
+      const index = localData.root_causes.findIndex(rc => rc.id === editingRootCause.id);
+      if (index !== -1) {
+        localData.root_causes[index] = rootCause;
+      }
+    } else {
+      localData.root_causes.push(rootCause);
+    }
+
+    saveLocalData(localData);
+    loadRootCauses();
+    resetForm();
   };
 
-  /* =========================================================================
-     Render
-     ========================================================================= */
+  const handleSaveSchedule = () => {
+    const localData = getLocalData();
+    if (!localData.treatment_schedules) {
+      localData.treatment_schedules = [];
+    }
+
+    if (!selectedRootCause) {
+      alert('Please select a root cause first');
+      return;
+    }
+
+    const schedule: TreatmentSchedule = {
+      id: editingSchedule?.id || `schedule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      root_cause_id: selectedRootCause.id,
+      name: scheduleFormData.name,
+      description: scheduleFormData.description,
+      total_duration: scheduleFormData.total_duration,
+      difficulty_level: scheduleFormData.difficulty_level,
+      steps: scheduleFormData.steps.map((step, index) => ({
+        ...step,
+        step_number: index + 1
+      })),
+      success_indicators: scheduleFormData.success_indicators.filter(si => si.trim()),
+      created_at: editingSchedule?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (editingSchedule) {
+      const index = localData.treatment_schedules.findIndex(s => s.id === editingSchedule.id);
+      if (index !== -1) {
+        localData.treatment_schedules[index] = schedule;
+      }
+    } else {
+      localData.treatment_schedules.push(schedule);
+    }
+
+    saveLocalData(localData);
+    loadRootCauses();
+    resetScheduleForm();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      category: 'disease',
+      description: '',
+      visual_indicators: [''],
+      standard_solutions: [''],
+      standard_recommendations: [''],
+      confidence_threshold: 0.7,
+      seasonal_factors: ['']
+    });
+    setEditingRootCause(null);
+    setShowForm(false);
+  };
+
+  const resetScheduleForm = () => {
+    setScheduleFormData({
+      name: '',
+      description: '',
+      total_duration: '',
+      difficulty_level: 'intermediate',
+      steps: [],
+      success_indicators: ['']
+    });
+    setEditingSchedule(null);
+    setShowScheduleForm(false);
+  };
+
+  const handleEditRootCause = (rootCause: RootCause) => {
+    setFormData({
+      name: rootCause.name,
+      category: rootCause.category,
+      description: rootCause.description,
+      visual_indicators: rootCause.visual_indicators.length > 0 ? rootCause.visual_indicators : [''],
+      standard_solutions: rootCause.standard_solutions.length > 0 ? rootCause.standard_solutions : [''],
+      standard_recommendations: rootCause.standard_recommendations.length > 0 ? rootCause.standard_recommendations : [''],
+      confidence_threshold: rootCause.confidence_threshold,
+      seasonal_factors: rootCause.seasonal_factors.length > 0 ? rootCause.seasonal_factors : ['']
+    });
+    setEditingRootCause(rootCause);
+    setShowForm(true);
+  };
+
+  const handleDeleteRootCause = (id: string) => {
+    if (confirm('Are you sure you want to delete this root cause?')) {
+      const localData = getLocalData();
+      localData.root_causes = localData.root_causes?.filter(rc => rc.id !== id) || [];
+      // Also delete associated schedules
+      localData.treatment_schedules = localData.treatment_schedules?.filter(s => s.root_cause_id !== id) || [];
+      saveLocalData(localData);
+      loadRootCauses();
+      if (selectedRootCause?.id === id) {
+        setSelectedRootCause(null);
+      }
+    }
+  };
+
+  const handleDeleteSchedule = (id: string) => {
+    if (confirm('Are you sure you want to delete this treatment schedule?')) {
+      const localData = getLocalData();
+      localData.treatment_schedules = localData.treatment_schedules?.filter(s => s.id !== id) || [];
+      saveLocalData(localData);
+      loadRootCauses();
+    }
+  };
+
+  const addArrayField = (field: string, value: string = '') => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: [...(prev[field] as string[]), value]
+    }));
+  };
+
+  const updateArrayField = (field: string, index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as string[]).map((item, i) => i === index ? value : item)
+    }));
+  };
+
+  const removeArrayField = (field: string, index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as string[]).filter((_, i) => i !== index)
+    }));
+  };
+
+  const addScheduleArrayField = (field: string, value: string = '') => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      [field]: [...(prev[field] as string[]), value]
+    }));
+  };
+
+  const updateScheduleArrayField = (field: string, index: number, value: string) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as string[]).map((item, i) => i === index ? value : item)
+    }));
+  };
+
+  const removeScheduleArrayField = (field: string, index: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] as string[]).filter((_, i) => i !== index)
+    }));
+  };
+
+  const addStep = () => {
+    const newStep: TreatmentScheduleStep = {
+      id: `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      step_number: scheduleFormData.steps.length + 1,
+      title: '',
+      description: '',
+      timing: '',
+      season: '',
+      products_needed: [],
+      notes: '',
+      is_critical: false
+    };
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: [...prev.steps, newStep]
+    }));
+  };
+
+  const updateStep = (index: number, field: keyof TreatmentScheduleStep, value: any) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.map((step, i) => 
+        i === index ? { ...step, [field]: value } : step
+      )
+    }));
+  };
+
+  const removeStep = (index: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.filter((_, i) => i !== index).map((step, i) => ({
+        ...step,
+        step_number: i + 1
+      }))
+    }));
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'disease': return 'bg-red-100 text-red-800';
+      case 'pest': return 'bg-orange-100 text-orange-800';
+      case 'environmental': return 'bg-blue-100 text-blue-800';
+      case 'maintenance': return 'bg-purple-100 text-purple-800';
+      case 'weed': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner': return 'bg-green-100 text-green-800';
+      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
+      case 'expert': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getSchedulesForRootCause = (rootCauseId: string) => {
+    return treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId);
+  };
+
+  const handleOpenScheduleForm = (rootCause: RootCause) => {
+    console.log('Opening schedule form for root cause:', rootCause.name);
+    setSelectedRootCause(rootCause);
+    setShowScheduleForm(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Root Cause Manager</h2>
-            <p className="text-sm text-gray-600">
-              Curate AI-discovered problems, add your products & affiliate links, and keep everything in sync.
-            </p>
+          <div className="flex items-center space-x-3">
+            <Database className="w-8 h-8 text-green-400" />
+            <div>
+              <h2 className="text-2xl font-bold text-white">Root Cause Manager</h2>
+              <p className="text-gray-400 mt-1">Manage diagnostic categories and treatment schedules</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={syncFromAI}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-              title="Merge AI results from the Analysis page"
-            >
-              <Wand2 className="w-4 h-4" />
-              <span>Sync from AI</span>
-            </button>
-            <button
-              onClick={openNewModal}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-black"
-              title="Create a new Root Cause"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New</span>
-            </button>
-            <button
-              onClick={saveAll}
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
-            >
-              <Save className="w-4 h-4" />
-              <span>{saving ? "Saving..." : "Save"}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Top Category Chips */}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <CategoryChip
-            label="All"
-            icon="📚"
-            active={activeCategory === "all"}
-            count={managed.length}
-            onClick={() => setActiveCategory("all")}
-          />
-          {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => {
-            const cfg = CATEGORY_CONFIG[cat];
-            return (
-              <CategoryChip
-                key={cat}
-                label={cfg.label}
-                icon={cfg.icon}
-                active={activeCategory === cat}
-                count={categoryCounts[cat]}
-                onClick={() => setActiveCategory(cat)}
-                className={cfg.chip}
-              />
-            );
-          })}
-        </div>
-
-        {/* Filters */}
-        <div className="mt-4 flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white">
-            <Search className="w-4 h-4 text-gray-500" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, subcategory, description..."
-              className="outline-none text-sm w-72"
-            />
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => {
-                setSearch("");
-                setActiveCategory("all");
-              }}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              <Filter className="w-4 h-4" />
-              Clear Filters
-            </button>
-            <button
-              onClick={exportDataAsJSON}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-lg hover:bg-gray-50"
-            >
-              <Database className="w-4 h-4" />
-              Export JSON
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-lg hover:bg-gray-50"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Reload
-            </button>
-          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Root Cause</span>
+          </button>
         </div>
       </div>
 
-      {/* Cards */}
-      {filtered.length === 0 ? (
-        <EmptyState />
-      ) : (
-        filtered.map((rc) => {
-          const safeCat = normalizeCategory(rc.category);
-          const cfg = CATEGORY_CONFIG[safeCat] || CATEGORY_CONFIG.other;
-          const cases = findCasesForRC(rc);
-
-          return (
-            <div key={rc.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              {/* Header */}
-              <div className={`px-6 py-4 border-b ${cfg.color}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">{cfg.icon}</span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={rc.name || ""}
-                          onChange={(e) => updateRC(rc.id, { name: e.target.value })}
-                          className="text-base font-semibold bg-transparent outline-none"
-                        />
-                        {!!rc.success_rate && (
-                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-white border">
-                            <BadgeCheck className="w-3 h-3" />
-                            {(rc.success_rate * 100).toFixed(0)}% success
-                          </span>
-                        )}
-                        {!!rc.case_count && (
-                          <span className="text-xs text-gray-600">{rc.case_count} cases</span>
-                        )}
-                      </div>
-                      <div className="text-sm">
-                        <span className="px-2 py-0.5 rounded-full border bg-white">
-                          {CATEGORY_CONFIG[safeCat].label}
+      {/* Root Causes List */}
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-white mb-6">Root Causes ({rootCauses.length})</h3>
+        
+        {rootCauses.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Database className="w-8 h-8 text-gray-500" />
+            </div>
+            <h4 className="text-lg font-medium text-gray-300 mb-2">No Root Causes</h4>
+            <p className="text-gray-500 mb-4">Create your first root cause to start building treatment schedules.</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors mx-auto"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Create First Root Cause</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {rootCauses.map((rootCause) => {
+              const schedules = getSchedulesForRootCause(rootCause.id);
+              return (
+                <div key={rootCause.id} className="p-4 bg-gray-700 rounded-lg">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h4 className="text-lg font-medium text-white">{rootCause.name}</h4>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(rootCause.category)}`}>
+                          {rootCause.category}
                         </span>
-                        {rc.subcategory && (
-                          <span className="ml-2 px-2 py-0.5 rounded-full border bg-white">
-                            {rc.subcategory.replace(/_/g, " ")}
-                          </span>
-                        )}
+                        <span className="text-sm text-gray-400">
+                          {schedules.length} schedule{schedules.length !== 1 ? 's' : ''}
+                        </span>
                       </div>
+                      <p className="text-gray-300 mb-2">{rootCause.description}</p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-400">
+                        <span>Confidence: {Math.round(rootCause.confidence_threshold * 100)}%</span>
+                        <span>Cases: {rootCause.case_count}</span>
+                        <span>Success: {Math.round(rootCause.success_rate * 100)}%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {schedules.length > 0 ? (
+                        <button
+                          onClick={() => handleOpenScheduleForm(rootCause)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add Schedule</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenScheduleForm(rootCause)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          <span>Create First Schedule</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedRootCause(rootCause)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>View</span>
+                      </button>
+                      <button
+                        onClick={() => handleEditRootCause(rootCause)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRootCause(rootCause.id)}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => deleteRC(rc.id)}
-                      className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-sm"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {/* Show schedules for this root cause */}
+                  {schedules.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-600">
+                      <h5 className="text-sm font-medium text-gray-300 mb-3">Treatment Schedules:</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {schedules.map((schedule) => (
+                          <div key={schedule.id} className="p-3 bg-gray-600 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <h6 className="font-medium text-white">{schedule.name}</h6>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(schedule.difficulty_level)}`}>
+                                {schedule.difficulty_level}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-300 mb-2">{schedule.description}</p>
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                              <span>{schedule.steps.length} steps</span>
+                              <span>{schedule.total_duration}</span>
+                              <div className="flex space-x-1">
+                                <button
+                                  onClick={() => {
+                                    setEditingSchedule(schedule);
+                                    setScheduleFormData({
+                                      name: schedule.name,
+                                      description: schedule.description,
+                                      total_duration: schedule.total_duration,
+                                      difficulty_level: schedule.difficulty_level,
+                                      steps: schedule.steps,
+                                      success_indicators: schedule.success_indicators
+                                    });
+                                    setSelectedRootCause(rootCause);
+                                    setShowScheduleForm(true);
+                                  }}
+                                  className="text-blue-400 hover:text-blue-300"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSchedule(schedule.id)}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Root Cause Detail Modal */}
+      {selectedRootCause && !showScheduleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">{selectedRootCause.name}</h3>
+                <button
+                  onClick={() => setSelectedRootCause(null)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
               </div>
 
               {/* Tabs */}
-              <div className="flex space-x-1 mb-6 px-6 pt-6">
+              <div className="flex space-x-1 mb-6">
                 <button
-                  onClick={() => setActiveTab("overview")}
+                  onClick={() => setActiveTab('overview')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === "overview"
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                    activeTab === 'overview'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
                   Overview
                 </button>
                 <button
-                  onClick={() => setActiveTab("schedule")}
+                  onClick={() => setActiveTab('schedules')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === "schedule"
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                    activeTab === 'schedules'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  Treatment Schedule
+                  Treatment Schedules ({getSchedulesForRootCause(selectedRootCause.id).length})
                 </button>
               </div>
 
-              {activeTab === "overview" && (
-                <>
-                  {/* Body */}
-                  <div className="p-6 space-y-6">
-                    {/* Row: category/sub/threshold/success */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="text-xs text-gray-600">Category</label>
-                        <select
-                          value={safeCat}
-                          onChange={(e) => updateRC(rc.id, { category: e.target.value as RootCauseCategory })}
-                          className="w-full px-3 py-2 border rounded-lg"
-                        >
-                          {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => (
-                            <option key={cat} value={cat}>
-                              {CATEGORY_CONFIG[cat].label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Subcategory</label>
-                        <input
-                          value={rc.subcategory || ""}
-                          onChange={(e) => updateRC(rc.id, { subcategory: e.target.value })}
-                          placeholder="e.g., brown_patch_disease"
-                          className="w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Confidence threshold</label>
-                        <input
-                          type="number"
-                          step="0.05"
-                          min={0}
-                          max={1}
-                          value={typeof rc.confidence_threshold === "number" ? rc.confidence_threshold : 0.7}
-                          onChange={(e) =>
-                            updateRC(rc.id, { confidence_threshold: Math.max(0, Math.min(1, Number(e.target.value))) })
-                          }
-                          className="w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Success rate</label>
-                        <input
-                          type="number"
-                          step="0.05"
-                          min={0}
-                          max={1}
-                          value={typeof rc.success_rate === "number" ? rc.success_rate : 0.6}
-                          onChange={(e) =>
-                            updateRC(rc.id, { success_rate: Math.max(0, Math.min(1, Number(e.target.value))) })
-                          }
-                          className="w-full px-3 py-2 border rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Description */}
+              {/* Tab Content */}
+              {activeTab === 'overview' && (
+                <div className="p-6 space-y-6">
+                  {/* Row: category/sub/threshold/success */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="text-xs text-gray-600">Description</label>
-                      <textarea
-                        value={rc.description || ""}
-                        onChange={(e) => updateRC(rc.id, { description: e.target.value })}
-                        rows={2}
-                        className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="Explain what this root cause is and when it appears."
-                      />
-                    </div>
-
-                    {/* Sources */}
-                    <div className="p-4 rounded-lg border bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Link2 className="w-4 h-4 text-blue-600" />
-                        <h4 className="text-sm font-semibold text-gray-900">
-                          Sources (Reddit & User){cases.length ? ` – ${cases.length}` : ""}
-                        </h4>
-                      </div>
-                      {cases.length === 0 ? (
-                        <p className="text-xs text-gray-500">
-                          No matching sources found yet. After AI Analysis runs, matching Reddit posts and user
-                          submissions will appear here.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {cases.map((c) => (
-                            <div
-                              key={c.id}
-                              className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-2 rounded border bg-gray-50"
-                            >
-                              <div className="md:col-span-7">
-                                <div className="flex items-center gap-2">
-                                  {c.source === "reddit" ? (
-                                    <MessageSquare className="w-4 h-4 text-orange-600" />
-                                  ) : (
-                                    <User className="w-4 h-4 text-purple-600" />
-                                  )}
-                                  <span className="text-sm font-medium text-gray-900 truncate">
-                                    {c.title || "(untitled)"}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-600 ml-6">
-                                  {c.source === "reddit" && c.subreddit ? `r/${c.subreddit}` : "User submission"}
-                                  {c.created_at ? ` • ${new Date(c.created_at).toLocaleDateString()}` : ""}
-                                </div>
-                              </div>
-
-                              <div className="md:col-span-3">
-                                {c.url ? (
-                                  <a
-                                    href={c.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
-                                    title="Open original post"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                    Open Post
-                                  </a>
-                                ) : (
-                                  <span className="text-xs text-gray-500">No post URL</span>
-                                )}
-                              </div>
-
-                              <div className="md:col-span-2">
-                                {c.image_url ? (
-                                  <a
-                                    href={c.image_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white border hover:bg-gray-100 text-sm"
-                                    title="Open image"
-                                  >
-                                    <ImageIcon className="w-4 h-4" />
-                                    Image
-                                  </a>
-                                ) : (
-                                  <span className="text-xs text-gray-500">No image</span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* AI Solutions Summary */}
-                    <div className="p-4 rounded-lg border bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <BookOpen className="w-4 h-4 text-purple-600" />
-                        <h4 className="text-sm font-semibold text-gray-900">AI Solutions Summary</h4>
-                      </div>
-                      {(rc.standard_solutions || []).length === 0 && (
-                        <p className="text-xs text-gray-500 mb-2">No AI solutions yet. Add a few below.</p>
-                      )}
-                      <div className="space-y-2">
-                        {(rc.standard_solutions || []).map((s, i) => (
-                          <div key={`${rc.id}_sol_${i}`} className="flex items-center gap-2">
-                            <input
-                              value={s}
-                              onChange={(e) => updateSolution(rc.id, i, e.target.value)}
-                              placeholder="e.g., Apply a propiconazole fungicide..."
-                              className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                            />
-                            <button
-                              onClick={() => removeSolution(rc.id, i)}
-                              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                              title="Remove"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          onClick={() => {
-                            console.log('Add Schedule clicked for:', rootCause.name);
-                            setSelectedRootCause(rootCause);
-                            setShowScheduleForm(true);
-                          }}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Add Solution
-                        </button>
-                      </div>
-                    </div>
-
-                        onClick={() => {
-                          console.log('Create First Schedule clicked for:', rootCause.name);
-                          setSelectedRootCause(rootCause);
-                          setShowScheduleForm(true);
-                        }}
-                    <div className="p-4 rounded-lg border bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Package className="w-4 h-4 text-emerald-600" />
-                        <h4 className="text-sm font-semibold text-gray-900">AI-Found Products</h4>
-                      </div>
-
-                      {(rc.ai_products || []).length === 0 ? (
-                        <p className="text-xs text-gray-500">
-                          No AI products for this root cause yet. Click <b>Sync from AI</b> to import, or add manually to
-                          Managed Products below.
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {(rc.ai_products || []).map((p) => (
-                            <div
-                              key={p.id}
-                              className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border bg-gray-50"
-                            >
-                              <input
-                                value={p.name}
-                                onChange={(e) => updateAIProduct(rc.id, p.id, { name: e.target.value })}
-                                className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                                placeholder="Product name"
-                              />
-                              <input
-                                value={p.category || ""}
-                                onChange={(e) => updateAIProduct(rc.id, p.id, { category: e.target.value })}
-                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                                placeholder="Category"
-                              />
-                              <input
-                                type="url"
-                                value={p.affiliate_link || ""}
-                                onChange={(e) => updateAIProduct(rc.id, p.id, { affiliate_link: e.target.value })}
-                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                                placeholder="Affiliate link (optional)"
-                              />
-                              <div className="flex items-center gap-2 md:col-span-1">
-                                {p.affiliate_link && (
-                                  <a
-                                    className="p-2 rounded bg-white border hover:bg-gray-50"
-                                    href={p.affiliate_link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    title="Open link"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </a>
-                                )}
-                                <button
-                                  onClick={() => promoteAIProduct(rc.id, p)}
-                                  className="px-2 py-1.5 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
-                                  title="Move to Managed Products"
-                                >
-                                  Promote
-                                </button>
-                                <button
-                                  onClick={() => removeAIProduct(rc.id, p.id)}
-                                  className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
-                                  title="Remove"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Managed Products */}
-                    <div className="p-4 rounded-lg border bg-white">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Tag className="w-4 h-4 text-blue-600" />
-                        <h4 className="text-sm font-semibold text-gray-900">Managed Products</h4>
-                      </div>
-
-                      {(rc.products || []).length === 0 ? (
-                        <p className="text-xs text-gray-500">No managed products yet.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {(rc.products || []).map((p) => (
-                            <div
-                              key={p.id}
-                              className="grid grid-cols-1 md:grid-cols-8 gap-2 items-center p-2 rounded border"
-                            >
-                              <input
-                                value={p.name}
-                                onChange={(e) => updateManagedProduct(rc.id, p.id, { name: e.target.value })}
-                                className="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                                placeholder="Product name"
-                              />
-                              <input
-                                value={p.category || ""}
-                                onChange={(e) => updateManagedProduct(rc.id, p.id, { category: e.target.value })}
-                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                                placeholder="Category"
-                              />
-                              <input
-                                type="url"
-                                value={p.affiliate_link || ""}
-                                onChange={(e) => updateManagedProduct(rc.id, p.id, { affiliate_link: e.target.value })}
-                                className="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                                placeholder="Affiliate link"
-                              />
-                              <div className="flex items-center gap-2 md:col-span-1">
-                                {p.affiliate_link && (
-                                  <a
-                                    className="p-2 rounded bg-white border hover:bg-gray-50"
-                                    href={p.affiliate_link}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    title="Open link"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </a>
-                                )}
-                                <button
-                                  onClick={() => removeManagedProduct(rc.id, p.id)}
-                                  className="px-2 py-1.5 text-xs rounded bg-gray-200 hover:bg-gray-300"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => addManagedProduct(rc.id)}
-                        className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add Product
-                      </button>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                        <span>
-                          Threshold: {(rc.confidence_threshold ?? 0.7).toFixed(2)} • Success:{" "}
-                          {((rc.success_rate ?? 0.6) * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      <span>
-                        Updated: {rc.updated_at ? new Date(rc.updated_at).toLocaleString() : "—"}
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Category</label>
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(selectedRootCause.category)}`}>
+                        {selectedRootCause.category}
                       </span>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Confidence Threshold</label>
+                      <p className="text-white">{Math.round(selectedRootCause.confidence_threshold * 100)}%</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Success Rate</label>
+                      <p className="text-white">{Math.round(selectedRootCause.success_rate * 100)}%</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Case Count</label>
+                      <p className="text-white">{selectedRootCause.case_count}</p>
+                    </div>
                   </div>
-                </>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Description</label>
+                    <p className="text-white bg-gray-700 p-3 rounded-lg">{selectedRootCause.description}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Visual Indicators</label>
+                      <ul className="space-y-1">
+                        {selectedRootCause.visual_indicators.map((indicator, idx) => (
+                          <li key={idx} className="flex items-center space-x-2 text-white">
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                            <span>{indicator}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Standard Solutions</label>
+                      <ul className="space-y-1">
+                        {selectedRootCause.standard_solutions.map((solution, idx) => (
+                          <li key={idx} className="flex items-center space-x-2 text-white">
+                            <Target className="w-4 h-4 text-blue-400" />
+                            <span>{solution}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {selectedRootCause.seasonal_factors.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Seasonal Factors</label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedRootCause.seasonal_factors.map((factor, idx) => (
+                          <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                            {factor}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
-              {activeTab === "schedule" && (
-                <div className="p-6 space-y-6">
+              {activeTab === 'schedules' && (
+                <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-lg font-semibold text-gray-900">Treatment Schedules</h4>
+                    <h4 className="text-lg font-semibold text-white">Treatment Schedules</h4>
                     <button
-                      onClick={() => setShowScheduleForm(true)}
+                      onClick={() => handleOpenScheduleForm(selectedRootCause)}
                       className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -1230,65 +603,130 @@ const RootCauseManager: React.FC = () => {
                     </button>
                   </div>
 
-                  {getSchedulesForRootCause(rc.id).length === 0 ? (
+                  {getSchedulesForRootCause(selectedRootCause.id).length === 0 ? (
                     <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Clock className="w-8 h-8 text-gray-400" />
+                      <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="w-8 h-8 text-gray-500" />
                       </div>
-                      <h5 className="text-lg font-medium text-gray-900 mb-2">No Treatment Schedules</h5>
-                      <p className="text-gray-600 mb-4">Create step-by-step treatment schedules for this root cause.</p>
+                      <h4 className="text-lg font-medium text-gray-300 mb-2">No Treatment Schedules</h4>
+                      <p className="text-gray-500 mb-4">Create a step-by-step treatment plan for this root cause.</p>
                       <button
-                        onClick={() => {
-                          setSelectedRootCause(rc); // ✅ now defined
-                          setShowScheduleForm(true);
-                        }}
+                        onClick={() => handleOpenScheduleForm(selectedRootCause)}
                         className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors mx-auto"
                       >
-                        <Plus className="w-5 h-5" />
+                        <Calendar className="w-5 h-5" />
                         <span>Create First Schedule</span>
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {getSchedulesForRootCause(rc.id).map((schedule) => (
-                        <div key={schedule.id} className="border border-gray-200 rounded-lg p-6">
-                          <div className="flex items-start justify-between mb-4">
+                      {getSchedulesForRootCause(selectedRootCause.id).map((schedule) => (
+                        <div key={schedule.id} className="p-6 bg-gray-700 rounded-lg">
+                          <div className="flex items-center justify-between mb-4">
                             <div>
-                              <h5 className="text-lg font-medium text-gray-900 mb-2">{schedule.name}</h5>
-                              <p className="text-gray-600 mb-3">{schedule.description}</p>
-                              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                <div className="flex items-center space-x-1">
-                                  <Clock className="w-4 h-4" />
-                                  <span>{schedule.total_duration}</span>
-                                </div>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(schedule.difficulty_level)}`}>
-                                  {schedule.difficulty_level}
-                                </span>
-                                <span>{schedule.steps.length} steps</span>
-                              </div>
+                              <h5 className="text-xl font-bold text-white">{schedule.name}</h5>
+                              <p className="text-gray-300 mt-1">{schedule.description}</p>
                             </div>
-                            <button
-                              onClick={() => setSelectedSchedule(schedule)}
-                              className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              <BookOpen className="w-4 h-4" />
-                              <span>View Steps</span>
-                            </button>
+                            <div className="flex items-center space-x-3">
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(schedule.difficulty_level)}`}>
+                                {schedule.difficulty_level}
+                              </span>
+                              <span className="text-sm text-gray-400">
+                                Duration: {schedule.total_duration}
+                              </span>
+                            </div>
                           </div>
 
+                          {/* Treatment Steps */}
+                          <div className="space-y-4">
+                            <h6 className="font-semibold text-gray-300">Treatment Steps:</h6>
+                            {schedule.steps.map((step, stepIndex) => (
+                              <div key={stepIndex} className="flex items-start space-x-4 p-4 bg-gray-600 rounded-lg">
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                                  step.is_critical ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                                }`}>
+                                  {step.step_number}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-3 mb-2">
+                                    <h6 className="font-semibold text-white">{step.title}</h6>
+                                    {step.is_critical && (
+                                      <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
+                                        Critical Step
+                                      </span>
+                                    )}
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                      {step.timing}
+                                    </span>
+                                    {step.season && (
+                                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                        {step.season}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-gray-300 mb-3">{step.description}</p>
+                                  
+                                  {step.products_needed && step.products_needed.length > 0 && (
+                                    <div className="mb-2">
+                                      <span className="text-sm font-medium text-gray-400">Products needed: </span>
+                                      <span className="text-sm text-gray-300">{step.products_needed.join(', ')}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {step.notes && (
+                                    <div className="mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-400">
+                                      <p className="text-sm text-yellow-800">
+                                        <strong>Note:</strong> {step.notes}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Success Indicators */}
                           {schedule.success_indicators.length > 0 && (
-                            <div>
-                              <h6 className="text-sm font-medium text-gray-700 mb-2">Success Indicators:</h6>
+                            <div className="mt-6 p-4 bg-green-50 rounded-lg">
+                              <h6 className="font-semibold text-green-900 mb-3">Signs of Success:</h6>
                               <ul className="space-y-1">
                                 {schedule.success_indicators.map((indicator, idx) => (
-                                  <li key={idx} className="flex items-center space-x-2 text-sm text-gray-600">
-                                    <CheckCircle className="w-3 h-3 text-green-500" />
-                                    <span>{indicator}</span>
+                                  <li key={idx} className="flex items-center space-x-2 text-green-800">
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm">{indicator}</span>
                                   </li>
                                 ))}
                               </ul>
                             </div>
                           )}
+
+                          <div className="flex items-center justify-end space-x-2 mt-4 pt-4 border-t border-gray-600">
+                            <button
+                              onClick={() => {
+                                setEditingSchedule(schedule);
+                                setScheduleFormData({
+                                  name: schedule.name,
+                                  description: schedule.description,
+                                  total_duration: schedule.total_duration,
+                                  difficulty_level: schedule.difficulty_level,
+                                  steps: schedule.steps,
+                                  success_indicators: schedule.success_indicators
+                                });
+                                setShowScheduleForm(true);
+                              }}
+                              className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSchedule(schedule.id)}
+                              className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1296,179 +734,490 @@ const RootCauseManager: React.FC = () => {
                 </div>
               )}
             </div>
-          );
-        })
+          </div>
+        </div>
       )}
 
-      {/* New Root Cause Modal */}
-      {showNewModal && (
-        <Modal onClose={() => setShowNewModal(false)} title="Create Root Cause">
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-gray-600">Name *</label>
-              <input
-                value={newForm.name || ""}
-                onChange={(e) => setNewForm((p) => ({ ...p, name: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg"
-                placeholder="e.g., Brown Patch Disease"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-600">Category *</label>
-                <select
-                  value={normalizeCategory(newForm.category || "other")}
-                  onChange={(e) =>
-                    setNewForm((p) => ({ ...p, category: e.target.value as RootCauseCategory }))
-                  }
-                  className="w-full px-3 py-2 border rounded-lg"
+      {/* Root Cause Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">
+                  {editingRootCause ? 'Edit Root Cause' : 'Add New Root Cause'}
+                </h3>
+                <button
+                  onClick={resetForm}
+                  className="text-gray-400 hover:text-white"
                 >
-                  {(Object.keys(CATEGORY_CONFIG) as RootCauseCategory[]).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {CATEGORY_CONFIG[cat].label}
-                    </option>
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., Brown Patch Disease"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Category *
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as RootCause['category'] }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="disease">Disease</option>
+                      <option value="pest">Pest</option>
+                      <option value="environmental">Environmental</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="weed">Weed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Describe the root cause, its symptoms, and characteristics..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Confidence Threshold
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1"
+                    step="0.1"
+                    value={formData.confidence_threshold}
+                    onChange={(e) => setFormData(prev => ({ ...prev, confidence_threshold: parseFloat(e.target.value) }))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>Low (0.1)</span>
+                    <span>Current: {formData.confidence_threshold}</span>
+                    <span>High (1.0)</span>
+                  </div>
+                </div>
+
+                {/* Visual Indicators */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Visual Indicators
+                    </label>
+                    <button
+                      onClick={() => addArrayField('visual_indicators')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Indicator
+                    </button>
+                  </div>
+                  {formData.visual_indicators.map((indicator, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={indicator}
+                        onChange={(e) => updateArrayField('visual_indicators', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Circular brown patches with dark edges"
+                      />
+                      {formData.visual_indicators.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField('visual_indicators', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-600">Subcategory</label>
-                <input
-                  value={newForm.subcategory || ""}
-                  onChange={(e) => setNewForm((p) => ({ ...p, subcategory: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="e.g., brown_patch"
-                />
-              </div>
-            </div>
+                </div>
 
-            <div>
-              <label className="text-xs text-gray-600">Description</label>
-              <textarea
-                value={newForm.description || ""}
-                onChange={(e) => setNewForm((p) => ({ ...p, description: e.target.value }))}
-                rows={3}
-                className="w-full px-3 py-2 border rounded-lg"
-                placeholder="Explain what this root cause is and when it appears."
-              />
-            </div>
+                {/* Standard Solutions */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Standard Solutions
+                    </label>
+                    <button
+                      onClick={() => addArrayField('standard_solutions')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Solution
+                    </button>
+                  </div>
+                  {formData.standard_solutions.map((solution, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={solution}
+                        onChange={(e) => updateArrayField('standard_solutions', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Apply fungicide containing propiconazole"
+                      />
+                      {formData.standard_solutions.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField('standard_solutions', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-600">Confidence threshold</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min={0}
-                  max={1}
-                  value={
-                    typeof newForm.confidence_threshold === "number"
-                      ? newForm.confidence_threshold
-                      : 0.7
-                  }
-                  onChange={(e) =>
-                    setNewForm((p) => ({
-                      ...p,
-                      confidence_threshold: Math.max(0, Math.min(1, Number(e.target.value))),
-                    }))
-                  }
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
+                {/* Seasonal Factors */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Seasonal Factors
+                    </label>
+                    <button
+                      onClick={() => addArrayField('seasonal_factors')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Factor
+                    </button>
+                  </div>
+                  {formData.seasonal_factors.map((factor, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={factor}
+                        onChange={(e) => updateArrayField('seasonal_factors', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Most active in warm, humid conditions"
+                      />
+                      {formData.seasonal_factors.length > 1 && (
+                        <button
+                          onClick={() => removeArrayField('seasonal_factors', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-gray-600">Success rate</label>
-                <input
-                  type="number"
-                  step="0.05"
-                  min={0}
-                  max={1}
-                  value={typeof newForm.success_rate === "number" ? newForm.success_rate : 0.6}
-                  onChange={(e) =>
-                    setNewForm((p) => ({
-                      ...p,
-                      success_rate: Math.max(0, Math.min(1, Number(e.target.value))),
-                    }))
-                  }
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
-              </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowNewModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createFromModal}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Create
-              </button>
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={resetForm}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveRootCause}
+                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{editingRootCause ? 'Update' : 'Save'} Root Cause</span>
+                </button>
+              </div>
             </div>
           </div>
-        </Modal>
+        </div>
+      )}
+
+      {/* Schedule Form Modal */}
+      {showScheduleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    {editingSchedule ? 'Edit Treatment Schedule' : 'Create Treatment Schedule'}
+                  </h3>
+                  <p className="text-gray-400">
+                    For: {selectedRootCause?.name}
+                  </p>
+                </div>
+                <button
+                  onClick={resetScheduleForm}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Schedule Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={scheduleFormData.name}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., Standard Brown Patch Treatment"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Difficulty Level
+                    </label>
+                    <select
+                      value={scheduleFormData.difficulty_level}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, difficulty_level: e.target.value as any }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="expert">Expert</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Description *
+                    </label>
+                    <textarea
+                      value={scheduleFormData.description}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      rows={3}
+                      placeholder="Describe the treatment approach..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Total Duration
+                    </label>
+                    <input
+                      type="text"
+                      value={scheduleFormData.total_duration}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, total_duration: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., 4-6 weeks, Full season"
+                    />
+                  </div>
+                </div>
+
+                {/* Treatment Steps */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-white">Treatment Steps</h4>
+                    <button
+                      onClick={addStep}
+                      className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Step</span>
+                    </button>
+                  </div>
+
+                  {scheduleFormData.steps.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-700 rounded-lg">
+                      <Calendar className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                      <p className="text-gray-400 mb-4">No steps added yet</p>
+                      <button
+                        onClick={addStep}
+                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors mx-auto"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add First Step</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {scheduleFormData.steps.map((step, index) => (
+                        <div key={index} className="p-4 bg-gray-700 rounded-lg">
+                          <div className="flex items-center justify-between mb-4">
+                            <h5 className="font-medium text-white">Step {step.step_number}</h5>
+                            <div className="flex items-center space-x-2">
+                              <label className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={step.is_critical}
+                                  onChange={(e) => updateStep(index, 'is_critical', e.target.checked)}
+                                  className="w-4 h-4 text-red-600 border-gray-600 rounded focus:ring-red-500 bg-gray-700"
+                                />
+                                <span className="text-sm text-gray-300">Critical Step</span>
+                              </label>
+                              <button
+                                onClick={() => removeStep(index)}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-400 mb-1">
+                                Step Title *
+                              </label>
+                              <input
+                                type="text"
+                                value={step.title}
+                                onChange={(e) => updateStep(index, 'title', e.target.value)}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="e.g., Apply Fungicide Treatment"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-400 mb-1">
+                                Timing *
+                              </label>
+                              <input
+                                type="text"
+                                value={step.timing}
+                                onChange={(e) => updateStep(index, 'timing', e.target.value)}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="e.g., Week 1, Day 3-5, Monthly"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-400 mb-1">
+                              Description *
+                            </label>
+                            <textarea
+                              value={step.description}
+                              onChange={(e) => updateStep(index, 'description', e.target.value)}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              rows={2}
+                              placeholder="Detailed instructions for this step..."
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-400 mb-1">
+                                Season (Optional)
+                              </label>
+                              <select
+                                value={step.season || ''}
+                                onChange={(e) => updateStep(index, 'season', e.target.value || undefined)}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              >
+                                <option value="">Any Season</option>
+                                <option value="Spring">Spring</option>
+                                <option value="Summer">Summer</option>
+                                <option value="Fall">Fall</option>
+                                <option value="Winter">Winter</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-400 mb-1">
+                                Products Needed
+                              </label>
+                              <input
+                                type="text"
+                                value={(step.products_needed || []).join(', ')}
+                                onChange={(e) => updateStep(index, 'products_needed', e.target.value.split(',').map(p => p.trim()).filter(p => p))}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Product 1, Product 2, Product 3"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-400 mb-1">
+                              Notes (Optional)
+                            </label>
+                            <textarea
+                              value={step.notes || ''}
+                              onChange={(e) => updateStep(index, 'notes', e.target.value || undefined)}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              rows={2}
+                              placeholder="Additional notes, warnings, or tips..."
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Success Indicators */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Success Indicators
+                    </label>
+                    <button
+                      onClick={() => addScheduleArrayField('success_indicators')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Indicator
+                    </button>
+                  </div>
+                  {scheduleFormData.success_indicators.map((indicator, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={indicator}
+                        onChange={(e) => updateScheduleArrayField('success_indicators', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., New green growth appears, Brown patches stop spreading"
+                      />
+                      {scheduleFormData.success_indicators.length > 1 && (
+                        <button
+                          onClick={() => removeScheduleArrayField('success_indicators', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={resetScheduleForm}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSchedule}
+                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{editingSchedule ? 'Update' : 'Save'} Schedule</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 };
-
-/* =========================================================================
-   UI Bits
-   ========================================================================= */
-const EmptyState: React.FC = () => (
-  <div className="bg-white rounded-xl shadow-sm border border-dashed border-gray-300 p-10 text-center">
-    <h3 className="text-lg font-semibold text-gray-900 mb-2">No root causes yet</h3>
-    <p className="text-gray-600">
-      Click <b>Sync from AI</b> to import results from the Analysis page, or create a new root cause.
-    </p>
-  </div>
-);
-
-const CategoryChip: React.FC<{
-  label: string;
-  count: number;
-  icon?: string;
-  active?: boolean;
-  onClick: () => void;
-  className?: string;
-}> = ({ label, count, icon, active, onClick, className }) => (
-  <button
-    onClick={onClick}
-    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm ${
-      active ? "bg-black text-white border-black" : "bg-white text-gray-800 hover:bg-gray-50"
-    } ${className || ""}`}
-    title={`Filter by ${label}`}
-  >
-    {icon && <span>{icon}</span>}
-    <span>{label}</span>
-    <span className="text-xs px-2 py-0.5 rounded-full bg-white border">{count}</span>
-  </button>
-);
-
-/* Simple modal */
-const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({
-  title,
-  onClose,
-  children,
-}) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-    <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl border">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-lg hover:bg-gray-100"
-          aria-label="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-      <div className="p-4">{children}</div>
-    </div>
-  </div>
-);
 
 export default RootCauseManager;
