@@ -710,6 +710,13 @@ const AdminDashboard: React.FC = () => {
                         <Eye className="w-4 h-4" />
                         <span>View</span>
                       </button>
+                     <button
+                       onClick={() => setEditingSubmission(submission)}
+                       className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                     >
+                       <Edit className="w-4 h-4" />
+                       <span>Edit</span>
+                     </button>
                       <button
                         onClick={() => setEditingSubmission(submission.id)}
                         className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
