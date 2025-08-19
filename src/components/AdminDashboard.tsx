@@ -34,6 +34,7 @@ const AdminDashboard: React.FC = () => {
     urgency: 'medium' as 'low' | 'medium' | 'high',
     solutions: ['']
   });
+  const [submissionFilter, setSubmissionFilter] = useState<'all' | 'pending' | 'reviewed' | 'flagged'>('all');
 
   const [stats, setStats] = useState({
     totalSubmissions: 0,
@@ -261,6 +262,20 @@ const AdminDashboard: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Recent User Submissions</h3>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <select
+                value={submissionFilter}
+                onChange={(e) => setSubmissionFilter(e.target.value as 'all' | 'pending' | 'reviewed' | 'flagged')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="all">All Submissions</option>
+                <option value="pending">Pending Review</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="flagged">Flagged for Review</option>
+              </select>
+            </div>
           <div className="flex items-center space-x-3">
             <button
               onClick={loadData}
@@ -277,6 +292,7 @@ const AdminDashboard: React.FC = () => {
               <span>Export Data</span>
             </button>
           </div>
+          </div>
         </div>
 
         {submissions.length === 0 ? (
@@ -289,7 +305,15 @@ const AdminDashboard: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {submissions.slice(0, 10).map((submission) => (
+            {submissions
+              .filter((submission) => {
+                if (submissionFilter === 'pending') return !submission.admin_reviewed;
+                if (submissionFilter === 'reviewed') return submission.admin_reviewed;
+                if (submissionFilter === 'flagged') return submission.flagged_for_review;
+                return true; // 'all'
+              })
+              .slice(0, 10)
+              .map((submission) => (
               <div key={submission.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
                 <img
                   src={submission.image_data}
@@ -304,6 +328,11 @@ const AdminDashboard: React.FC = () => {
                     }`}>
                       {submission.admin_reviewed ? 'Reviewed' : 'Pending'}
                     </span>
+                    {submission.flagged_for_review && (
+                      <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+                        Flagged
+                      </span>
+                    )}
                   </div>
                   <p className="text-gray-600 text-sm mb-2">{submission.problem_description}</p>
                   
