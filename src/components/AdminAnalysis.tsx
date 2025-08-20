@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { getLocalData, saveLocalData } from '../utils/localStorage';
-import { REDDIT_ANALYSIS_SYSTEM_PROMPT } from '../utils/redditAnalysisPrompt';
+import { buildRedditAnalysisPrompt } from '../utils/redditAnalysisPrompt';
 import { config } from '../utils/config';
+import { CategorySuggestion } from '../types';
 import { Brain, Play, Zap, Target, CheckCircle, Clock } from 'lucide-react';
 
 const AdminAnalysis: React.FC = () => {
@@ -36,6 +37,7 @@ const AdminAnalysis: React.FC = () => {
   const performRealAIAnalysis = async (posts: any[]) => {
     try {
       const analyses = [];
+      const allCategorySuggestions: CategorySuggestion[] = [];
       const batchSize = settings.batchSize;
       
       for (let i = 0; i < posts.length; i += batchSize) {
@@ -44,6 +46,15 @@ const AdminAnalysis: React.FC = () => {
         
         for (const post of batch) {
           try {
+            // Build proper analysis prompt
+            const analysisPrompt = buildRedditAnalysisPrompt(
+              post.title || '',
+              post.selftext || '',
+              (post.comments || []).map((c: any) => c.body).filter(Boolean),
+              !!post.image_path,
+              post.image_path ? [`Image available at ${post.image_path}`] : []
+            );
+
             // Call real OpenAI API for each post
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST',
@@ -57,17 +68,44 @@ const AdminAnalysis: React.FC = () => {
                 messages: [
                   {
                     role: 'system',
-                    content: REDDIT_ANALYSIS_SYSTEM_PROMPT
+                    content: `You are a professional lawn care diagnostician analyzing Reddit discussions. 
+
+When you encounter problems that don't fit well into existing categories, suggest new categories.
+
+Return JSON with this structure:
+{
+  "post_analysis": {
+    "primary_issue": "string",
+    "confidence": 0.0-1.0
+  },
+  "solutions_extracted": [
+    {
+      "solution_text": "string",
+      "products_mentioned": [
+        {
+          "product_name": "string",
+          "active_ingredient": "string"
+        }
+      ]
+    }
+  ],
+  "category_suggestions": [
+    {
+      "suggested_category": "string",
+      "suggested_subcategory": "string",
+      "description": "string", 
+      "reasoning": "string",
+      "confidence": 0.0-1.0,
+      "visual_indicators": ["string"],
+      "suggested_solutions": ["string"],
+      "suggested_products": ["string"]
+    }
+  ]
+}`
                   },
                   {
                     role: 'user',
-                    content: `Analyze this Reddit lawn care discussion:
-
-POST TITLE: ${post.title}
-POST CONTENT: ${post.selftext || 'No content'}
-COMMENTS: ${(post.comments || []).map((c: any) => c.body).join(' | ').substring(0, 1000)}
-
-Extract lawn care intelligence following the system instructions.`
+                    content: analysisPrompt
                   }
                 ],
                 response_format: { type: 'json_object' },
@@ -83,6 +121,27 @@ Extract lawn care intelligence following the system instructions.`
             const data = await response.json();
             const result = JSON.parse(data.choices[0].message.content || '{}');
             
+            // Process category suggestions
+            if (result.category_suggestions && result.category_suggestions.length > 0) {
+              const categorySuggestions = result.category_suggestions.map((suggestion: any) => ({
+                id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                suggested_category: suggestion.suggested_category || '',
+                suggested_subcategory: suggestion.suggested_subcategory || '',
+                description: suggestion.description || '',
+                reasoning: suggestion.reasoning || '',
+                confidence: suggestion.confidence || 0.5,
+                supporting_cases: [post.id],
+                visual_indicators: suggestion.visual_indicators || [],
+                suggested_solutions: suggestion.suggested_solutions || [],
+                suggested_products: suggestion.suggested_products || [],
+                created_at: new Date().toISOString(),
+                status: 'pending' as const,
+              }));
+              
+              allCategorySuggestions.push(...categorySuggestions);
+              console.log(`Found ${categorySuggestions.length} category suggestions from post: ${post.title}`);
+            }
+
             analyses.push({
               id: post.id,
               post_id: post.id,
@@ -140,11 +199,29 @@ Extract lawn care intelligence following the system instructions.`
       // Save real analyses to localStorage
       const localData = getLocalData();
       localData.analyzed_posts = analyses;
+      
+      // Save category suggestions to localStorage
+      if (allCategorySuggestions.length > 0) {
+        if (!localData.category_suggestions) {
+          localData.category_suggestions = [];
+        }
+        localData.category_suggestions.push(...allCategorySuggestions);
+        console.log(`Saved ${allCategorySuggestions.length} category suggestions for admin review`);
+      }
+      
       saveLocalData(localData);
       
       console.log('REAL AI analysis complete:', analyses.length, 'posts analyzed');
+      console.log('Category suggestions generated:', allCategorySuggestions.length);
       setIsAnalyzing(false);
       setProgress(100);
+      
+      // Show completion message with category suggestions info
+      if (allCategorySuggestions.length > 0) {
+        alert(`Analysis complete! ${analyses.length} posts analyzed.\n\n${allCategorySuggestions.length} new category suggestions were generated and are available for review in the Category Suggestions tab.`);
+      } else {
+        alert(`Analysis complete! ${analyses.length} posts analyzed.\n\nNo new category suggestions were generated.`);
+      }
       
     } catch (error) {
       console.error('Real AI analysis failed:', error);
