@@ -286,6 +286,8 @@ const UnifiedAdminDashboard: React.FC = () => {
   const [emailSearch, setEmailSearch] = useState('');
   const [submissionFilter, setSubmissionFilter] = useState<'all' | 'pending' | 'reviewed' | 'flagged'>('all');
   const [selectedSubmission, setSelectedSubmission] = useState<UserDiagnostic | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSubmission, setEditingSubmission] = useState<any>(null);
 
   const [stats, setStats] = useState<CollectionStats & {
     todaySubmissions: number;
@@ -771,6 +773,10 @@ const UnifiedAdminDashboard: React.FC = () => {
       );
     }
 
+    return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [emailContacts, emailFilter, emailSearch]);
+
+  const handleEdit = (submission: any) => {
     console.log('Editing submission:', submission);
     if (submission.analysis_result) {
       setEditingSubmission(submission);
@@ -790,6 +796,10 @@ const UnifiedAdminDashboard: React.FC = () => {
     } else {
       alert('No analysis result found for this submission');
     }
+  };
+
+  const handleEditAnalysis = (analysis: LawnAnalysis) => {
+    setEditingId(analysis.id);
     setEditForm({
       ...analysis,
       category: extractCategory(analysis.root_cause || ''),
@@ -879,6 +889,55 @@ const UnifiedAdminDashboard: React.FC = () => {
     setEditForm({});
   };
 
+  const addSolution = () => {
+    setEditForm(prev => ({
+      ...prev,
+      solutions: [...(prev.solutions || []), '']
+    }));
+  };
+
+  const updateSolution = (index: number, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      solutions: (prev.solutions || []).map((sol, i) => i === index ? value : sol)
+    }));
+  };
+
+  const removeSolution = (index: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      solutions: (prev.solutions || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingSubmission) return;
+
+    const data = getLocalData();
+    const submissionIndex = data.submissions.findIndex((s: any) => s.id === editingSubmission.id);
+    
+    if (submissionIndex !== -1) {
+      data.submissions[submissionIndex].analysis_result = {
+        ...data.submissions[submissionIndex].analysis_result,
+        rootCause: editForm.rootCause,
+        solutions: editForm.solutions,
+        confidence: editForm.confidence,
+        healthScore: editForm.healthScore,
+        urgency: editForm.urgency,
+        difficulty: editForm.difficulty,
+        costEstimate: editForm.costEstimate,
+        timeline: editForm.timeline
+      };
+      
+      saveLocalData(data);
+      loadLocalData();
+    }
+
+    setShowEditModal(false);
+    setEditingSubmission(null);
+    setSelectedSubmission(null);
+  };
+
   /* ---------------------- Products / affiliate persistence ---------------------- */
   const updateAffiliateLink = (analysisId: string, productId: string, link: string) => {
     if (activeTab === 'reddit') {
@@ -936,7 +995,6 @@ const UnifiedAdminDashboard: React.FC = () => {
 
         return patched;
       });
-    setShowEditModal(false);
     }
   };
 
@@ -1221,14 +1279,14 @@ const UnifiedAdminDashboard: React.FC = () => {
                             const updatedAnalysis = prompt('Edit root cause:', submission.analysis_result?.rootCause || '');
                             if (updatedAnalysis && updatedAnalysis.trim()) {
                               const localData = getLocalData();
-                              const submissionIndex = localData.submissions.findIndex(s => s.id === submission.id);
+                              const submissionIndex = localData.submissions.findIndex((s: any) => s.id === submission.id);
                               if (submissionIndex !== -1) {
                                 localData.submissions[submissionIndex].analysis_result = {
                                   ...localData.submissions[submissionIndex].analysis_result,
                                   rootCause: updatedAnalysis.trim()
                                 };
                                 saveLocalData(localData);
-                                loadDashboardData(); // Refresh the data
+                                loadLocalData(); // Refresh the data
                               }
                             }
                           }}
@@ -1657,7 +1715,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                           <span>View</span>
                         </button>
                         <button
-                          onClick={() => handleEdit(submission.analysis)}
+                          onClick={() => handleEdit(submission)}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
                         >
                           <Edit className="w-4 h-4" />
@@ -1719,7 +1777,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                     <div className="flex items-center space-x-2 ml-4">
                       {editingId === analysis.id ? null : (
                         <button
-                          onClick={() => handleEdit(analysis)}
+                          onClick={() => handleEditAnalysis(analysis)}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -1764,9 +1822,9 @@ const UnifiedAdminDashboard: React.FC = () => {
                 <h3 className="text-xl font-bold text-gray-900">Submission Details</h3>
                 <div className="flex items-center space-x-3">
                   <button
-                    onClick={() => handleEdit(selectedSubmission.analysis)}
+                    onClick={() => handleEdit(selectedSubmission)}
                     className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                    disabled={!submission.analysis_result}
+                    disabled={!selectedSubmission.analysis_result}
                   >
                     <Edit className="w-4 h-4" />
                     <span>Edit Analysis</span>
@@ -1943,7 +2001,7 @@ const UnifiedAdminDashboard: React.FC = () => {
       )}
 
       {/* Edit Analysis Modal */}
-      {showEditModal && selectedSubmission && (
+      {showEditModal && editingSubmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
@@ -1952,7 +2010,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                 <button
                   onClick={() => {
                     setShowEditModal(false);
-                    setSelectedSubmission(null);
+                    setEditingSubmission(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -1967,7 +2025,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                     Root Cause *
                   </label>
                   <textarea
-                    value={editForm.rootCause}
+                    value={editForm.rootCause || ''}
                     onChange={(e) => setEditForm(prev => ({ ...prev, rootCause: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
@@ -1988,7 +2046,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                       + Add Solution
                     </button>
                   </div>
-                  {editForm.solutions.map((solution, index) => (
+                  {(editForm.solutions || ['']).map((solution, index) => (
                     <div key={index} className="flex items-center space-x-2 mb-2">
                       <input
                         type="text"
@@ -1997,7 +2055,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Treatment recommendation..."
                       />
-                      {editForm.solutions.length > 1 && (
+                      {(editForm.solutions || []).length > 1 && (
                         <button
                           onClick={() => removeSolution(index)}
                           className="text-red-600 hover:text-red-800"
@@ -2020,13 +2078,13 @@ const UnifiedAdminDashboard: React.FC = () => {
                       min="0"
                       max="1"
                       step="0.1"
-                      value={editForm.confidence}
+                      value={editForm.confidence || 0.5}
                       onChange={(e) => setEditForm(prev => ({ ...prev, confidence: parseFloat(e.target.value) }))}
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-gray-500 mt-1">
                       <span>Low (0.0)</span>
-                      <span>Current: {editForm.confidence}</span>
+                      <span>Current: {editForm.confidence || 0.5}</span>
                       <span>High (1.0)</span>
                     </div>
                   </div>
@@ -2039,7 +2097,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                       type="number"
                       min="1"
                       max="10"
-                      value={editForm.healthScore}
+                      value={editForm.healthScore || 5}
                       onChange={(e) => setEditForm(prev => ({ ...prev, healthScore: parseInt(e.target.value) }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
@@ -2050,7 +2108,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                       Treatment Urgency
                     </label>
                     <select
-                      value={editForm.urgency}
+                      value={editForm.urgency || 'medium'}
                       onChange={(e) => setEditForm(prev => ({ ...prev, urgency: e.target.value as 'low' | 'medium' | 'high' }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -2065,7 +2123,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                       Difficulty Level
                     </label>
                     <select
-                      value={editForm.difficulty}
+                      value={editForm.difficulty || 'intermediate'}
                       onChange={(e) => setEditForm(prev => ({ ...prev, difficulty: e.target.value as 'beginner' | 'intermediate' | 'expert' }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -2081,7 +2139,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={editForm.costEstimate}
+                      value={editForm.costEstimate || ''}
                       onChange={(e) => setEditForm(prev => ({ ...prev, costEstimate: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., $25-50"
@@ -2094,7 +2152,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={editForm.timeline}
+                      value={editForm.timeline || ''}
                       onChange={(e) => setEditForm(prev => ({ ...prev, timeline: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., 2-4 weeks"
@@ -2107,7 +2165,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                 <button
                   onClick={() => {
                     setShowEditModal(false);
-                    setSelectedSubmission(null);
+                    setEditingSubmission(null);
                   }}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
