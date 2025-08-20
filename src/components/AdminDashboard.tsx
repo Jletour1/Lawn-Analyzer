@@ -771,18 +771,25 @@ const UnifiedAdminDashboard: React.FC = () => {
       );
     }
 
-    // Sort by most recent
-    return filtered.sort((a, b) => {
-      const da = new Date(a.created_at || 0).getTime();
-      const db = new Date(b.created_at || 0).getTime();
-      return db - da;
-    });
-  }, [emailContacts, emailFilter, emailSearch]);
-
-  /* ---------------------- Edit handlers ---------------------- */
-  const handleEdit = (analysis: LawnAnalysis) => {
-    setEditingId(analysis.id);
-    setShowEditModal(true);
+    console.log('Editing submission:', submission);
+    if (submission.analysis_result) {
+      setEditingSubmission(submission);
+      setEditForm({
+        rootCause: submission.analysis_result.rootCause || '',
+        solutions: Array.isArray(submission.analysis_result.solutions) 
+          ? submission.analysis_result.solutions 
+          : [''],
+        confidence: submission.analysis_result.confidence || 0.5,
+        healthScore: submission.analysis_result.healthScore || 5,
+        urgency: submission.analysis_result.urgency || 'medium',
+        difficulty: submission.analysis_result.difficulty || 'intermediate',
+        costEstimate: submission.analysis_result.costEstimate || '',
+        timeline: submission.analysis_result.timeline || ''
+      });
+      setShowEditModal(true);
+    } else {
+      alert('No analysis result found for this submission');
+    }
     setEditForm({
       ...analysis,
       category: extractCategory(analysis.root_cause || ''),
