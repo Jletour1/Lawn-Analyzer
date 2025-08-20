@@ -38,6 +38,14 @@ const RootCauseManager: React.FC = () => {
     caseCount: 'all' as 'all' | 'many' | 'few' | 'none',
     searchTerm: ''
   });
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [filters, setFilters] = useState({
+    category: 'all' as 'all' | 'disease' | 'pest' | 'weed' | 'environmental' | 'maintenance',
+    confidenceRange: 'all' as 'all' | 'high' | 'medium' | 'low',
+    caseCount: 'all' as 'all' | 'many' | 'few' | 'none',
+    searchTerm: ''
+  });
   const [editForm, setEditForm] = useState({
     name: '',
     category: 'environmental' as const,
@@ -64,10 +72,106 @@ const RootCauseManager: React.FC = () => {
   useEffect(() => {
     applyFilters();
   }, [rootCauses, filters]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [rootCauses, filters]);
   const loadData = () => {
     const localData = getLocalData();
     setRootCauses(localData.root_causes || []);
     setTreatmentSchedules(localData.treatment_schedules || []);
+  };
+
+  const applyFilters = () => {
+    let filtered = [...rootCauses];
+
+    // Category filter
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(rc => rc.category === filters.category);
+    }
+
+    // Confidence filter
+    if (filters.confidenceRange !== 'all') {
+      filtered = filtered.filter(rc => {
+        const confidence = rc.confidence_threshold || 0;
+        switch (filters.confidenceRange) {
+          case 'high': return confidence >= 0.8;
+          case 'medium': return confidence >= 0.5 && confidence < 0.8;
+          case 'low': return confidence < 0.5;
+          default: return true;
+        }
+      });
+    }
+
+    // Case count filter
+    if (filters.caseCount !== 'all') {
+      filtered = filtered.filter(rc => {
+        const cases = rc.case_count || 0;
+        switch (filters.caseCount) {
+          case 'many': return cases >= 10;
+          case 'few': return cases > 0 && cases < 10;
+          case 'none': return cases === 0;
+          default: return true;
+        }
+      });
+    }
+
+    // Search term filter
+    if (filters.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter(rc => 
+        rc.name.toLowerCase().includes(searchLower) ||
+        rc.description.toLowerCase().includes(searchLower) ||
+        rc.visual_indicators.some(vi => vi.toLowerCase().includes(searchLower)) ||
+        rc.standard_solutions.some(sol => sol.toLowerCase().includes(searchLower))
+      );
+    }
+
+    setFilteredRootCauses(filtered);
+  };
+
+  const handleSelectForDelete = (id: string, selected: boolean) => {
+    const newSelected = new Set(selectedForDelete);
+    if (selected) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedForDelete(newSelected);
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
+    } else {
+      setSelectedForDelete(new Set());
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedForDelete.size === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = () => {
+    const localData = getLocalData();
+    if (localData.root_causes) {
+      localData.root_causes = localData.root_causes.filter(rc => !selectedForDelete.has(rc.id));
+      saveLocalData(localData);
+      loadData();
+      setSelectedForDelete(new Set());
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      category: 'all',
+      confidenceRange: 'all',
+      caseCount: 'all',
+      searchTerm: ''
+    });
+    setSelectedForDelete(new Set());
   };
 
   const applyFilters = () => {
@@ -354,22 +458,144 @@ const RootCauseManager: React.FC = () => {
         </div>
       </div>
 
+      {/* Filters and Bulk Actions */}
+      <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-5 h-5 text-gray-400" />
+              <span className="text-sm font-medium text-gray-300">Filters:</span>
+            </div>
+            
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value as any }))}
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="all">All Categories</option>
+              <option value="disease">Disease</option>
+              <option value="pest">Pest</option>
+              <option value="weed">Weed</option>
+              <option value="environmental">Environmental</option>
+              <option value="maintenance">Maintenance</option>
+            </select>
+
+            <select
+              value={filters.confidenceRange}
+              onChange={(e) => setFilters(prev => ({ ...prev, confidenceRange: e.target.value as any }))}
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="all">All Confidence</option>
+              <option value="high">High (80%+)</option>
+              <option value="medium">Medium (50-80%)</option>
+              <option value="low">Low (<50%)</option>
+            </select>
+
+            <select
+              value={filters.caseCount}
+              onChange={(e) => setFilters(prev => ({ ...prev, caseCount: e.target.value as any }))}
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="all">All Cases</option>
+              <option value="many">Many Cases (10+)</option>
+              <option value="few">Few Cases (1-9)</option>
+              <option value="none">No Cases (0)</option>
+            </select>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search root causes..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                className="pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Bulk Actions */}
+          <div className="flex items-center space-x-3">
+            {selectedForDelete.size > 0 && (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-300">
+                  {selectedForDelete.size} selected
+                </span>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Selected</span>
+                </button>
+              </div>
+            )}
+            <button
+              onClick={clearFilters}
+              className="px-3 py-2 text-gray-400 hover:text-white text-sm transition-colors"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 text-sm text-gray-400">
+          Showing {filteredRootCauses.length} of {rootCauses.length} root causes
+        </div>
+      </div>
+
       {/* Root Causes List */}
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-white mb-6">Root Causes Database</h3>
         
-        {rootCauses.length === 0 ? (
+        {/* Select All Checkbox */}
+        {filteredRootCauses.length > 0 && (
+          <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={selectedForDelete.size === filteredRootCauses.length && filteredRootCauses.length > 0}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+                className="w-4 h-4 text-green-600 border-gray-500 rounded focus:ring-green-500 bg-gray-600"
+              />
+              <span className="text-sm font-medium text-gray-300">
+                Select All ({filteredRootCauses.length} items)
+              </span>
+            </label>
+          </div>
+        )}
+        
+        {filteredRootCauses.length === 0 ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Database className="w-8 h-8 text-gray-500" />
             </div>
-            <h4 className="text-lg font-medium text-gray-300 mb-2">No Root Causes Found</h4>
-            <p className="text-gray-500">Run AI Analysis to generate root causes from your data, or add them manually.</p>
+            <h4 className="text-lg font-medium text-gray-300 mb-2">
+              {rootCauses.length === 0 ? 'No Root Causes Found' : 'No Results Found'}
+            </h4>
+            <p className="text-gray-500">
+              {rootCauses.length === 0 
+                ? 'Run AI Analysis to generate root causes from your data, or add them manually.'
+                : 'Try adjusting your filters to see more results.'
+              }
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {rootCauses.map((rootCause) => (
+            {filteredRootCauses.map((rootCause) => (
               <div key={rootCause.id} className="p-4 bg-gray-700 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  {/* Selection Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedForDelete.has(rootCause.id)}
+                    onChange={(e) => handleSelectForDelete(rootCause.id, e.target.checked)}
+                    className="mt-1 w-4 h-4 text-green-600 border-gray-500 rounded focus:ring-green-500 bg-gray-600"
+                  />
+                  
+                  <div className="flex-1">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
@@ -457,11 +683,63 @@ const RootCauseManager: React.FC = () => {
                     <p className="text-gray-500 text-sm">No products added yet</p>
                   )}
                 </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+                <h3 className="text-lg font-bold text-white">Confirm Bulk Delete</h3>
+              </div>
+              
+              <p className="text-gray-300 mb-4">
+                Are you sure you want to delete {selectedForDelete.size} root cause{selectedForDelete.size > 1 ? 's' : ''}? 
+                This action cannot be undone.
+              </p>
+              
+              <div className="bg-gray-700 rounded-lg p-3 mb-6 max-h-32 overflow-y-auto">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Items to be deleted:</h4>
+                <ul className="text-sm text-gray-400 space-y-1">
+                  {filteredRootCauses
+                    .filter(rc => selectedForDelete.has(rc.id))
+                    .map(rc => (
+                      <li key={rc.id} className="flex items-center space-x-2">
+                        <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                        <span>{rc.name}</span>
+                      </li>
+                    ))
+                  }
+                </ul>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkDelete}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete {selectedForDelete.size} Items</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Documentation Modal */}
       {showAIDocumentation && (
