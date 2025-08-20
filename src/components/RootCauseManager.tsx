@@ -23,10 +23,19 @@ import {
 const RootCauseManager: React.FC = () => {
   const [rootCauses, setRootCauses] = useState<RootCause[]>([]);
   const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
+  const [filteredRootCauses, setFilteredRootCauses] = useState<RootCause[]>([]);
   const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIDocumentation, setShowAIDocumentation] = useState<RootCause | null>(null);
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [filters, setFilters] = useState({
+    category: 'all' as 'all' | 'disease' | 'pest' | 'weed' | 'environmental' | 'maintenance',
+    confidenceRange: 'all' as 'all' | 'high' | 'medium' | 'low',
+    caseCount: 'all' as 'all' | 'many' | 'few' | 'none',
+    searchTerm: ''
+  });
   const [editForm, setEditForm] = useState({
     name: '',
     category: 'environmental' as const,
@@ -50,10 +59,105 @@ const RootCauseManager: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    applyFilters();
+  }, [rootCauses, filters]);
   const loadData = () => {
     const localData = getLocalData();
     setRootCauses(localData.root_causes || []);
     setTreatmentSchedules(localData.treatment_schedules || []);
+  };
+
+  const applyFilters = () => {
+    let filtered = [...rootCauses];
+
+    // Category filter
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(rc => rc.category === filters.category);
+    }
+
+    // Confidence filter
+    if (filters.confidenceRange !== 'all') {
+      filtered = filtered.filter(rc => {
+        const confidence = rc.confidence_threshold || 0;
+        switch (filters.confidenceRange) {
+          case 'high': return confidence >= 0.8;
+          case 'medium': return confidence >= 0.5 && confidence < 0.8;
+          case 'low': return confidence < 0.5;
+          default: return true;
+        }
+      });
+    }
+
+    // Case count filter
+    if (filters.caseCount !== 'all') {
+      filtered = filtered.filter(rc => {
+        const cases = rc.case_count || 0;
+        switch (filters.caseCount) {
+          case 'many': return cases >= 10;
+          case 'few': return cases > 0 && cases < 10;
+          case 'none': return cases === 0;
+          default: return true;
+        }
+      });
+    }
+
+    // Search term filter
+    if (filters.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter(rc => 
+        rc.name.toLowerCase().includes(searchLower) ||
+        rc.description.toLowerCase().includes(searchLower) ||
+        rc.visual_indicators.some(vi => vi.toLowerCase().includes(searchLower)) ||
+        rc.standard_solutions.some(sol => sol.toLowerCase().includes(searchLower))
+      );
+    }
+
+    setFilteredRootCauses(filtered);
+  };
+
+  const handleSelectForDelete = (id: string, selected: boolean) => {
+    const newSelected = new Set(selectedForDelete);
+    if (selected) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedForDelete(newSelected);
+  };
+
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
+    } else {
+      setSelectedForDelete(new Set());
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedForDelete.size === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = () => {
+    const localData = getLocalData();
+    if (localData.root_causes) {
+      localData.root_causes = localData.root_causes.filter(rc => !selectedForDelete.has(rc.id));
+      saveLocalData(localData);
+      loadData();
+      setSelectedForDelete(new Set());
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      category: 'all',
+      confidenceRange: 'all',
+      caseCount: 'all',
+      searchTerm: ''
+    });
+    setSelectedForDelete(new Set());
   };
 
   const handleEdit = (rootCause: RootCause) => {
