@@ -17,7 +17,9 @@ import {
   Clock,
   Brain,
   FileText,
-  Code
+  Code,
+  Filter,
+  Search
 } from 'lucide-react';
 
 const RootCauseManager: React.FC = () => {
