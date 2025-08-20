@@ -38,14 +38,6 @@ const RootCauseManager: React.FC = () => {
     caseCount: 'all' as 'all' | 'many' | 'few' | 'none',
     searchTerm: ''
   });
-  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [filters, setFilters] = useState({
-    category: 'all' as 'all' | 'disease' | 'pest' | 'weed' | 'environmental' | 'maintenance',
-    confidenceRange: 'all' as 'all' | 'high' | 'medium' | 'low',
-    caseCount: 'all' as 'all' | 'many' | 'few' | 'none',
-    searchTerm: ''
-  });
   const [editForm, setEditForm] = useState({
     name: '',
     category: 'environmental' as const,
