@@ -782,6 +782,7 @@ const UnifiedAdminDashboard: React.FC = () => {
   /* ---------------------- Edit handlers ---------------------- */
   const handleEdit = (analysis: LawnAnalysis) => {
     setEditingId(analysis.id);
+    setShowEditModal(true);
     setEditForm({
       ...analysis,
       category: extractCategory(analysis.root_cause || ''),
@@ -867,6 +868,7 @@ const UnifiedAdminDashboard: React.FC = () => {
 
   const handleCancel = () => {
     setEditingId(null);
+    setShowEditModal(false);
     setEditForm({});
   };
 
@@ -927,6 +929,7 @@ const UnifiedAdminDashboard: React.FC = () => {
 
         return patched;
       });
+    setShowEditModal(false);
     }
   };
 
