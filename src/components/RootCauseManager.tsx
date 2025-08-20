@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getLocalData, saveLocalData } from '../utils/localStorage';
+import { getCategoryNames, getCategoryStats } from '../utils/categoryManager';
 import { RootCause, TreatmentSchedule } from '../types';
 import {
   Database,
@@ -30,6 +31,7 @@ const RootCauseManager: React.FC = () => {
   const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [showAIDocumentation, setShowAIDocumentation] = useState<RootCause | null>(null);
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -81,18 +83,27 @@ const RootCauseManager: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    loadAvailableCategories();
     
     // Listen for data updates from other components
     const handleDataUpdate = () => {
       console.log('RootCauseManager: Received data update event, reloading...');
       loadData();
+      loadAvailableCategories();
+    };
+    
+    const handleCategoriesUpdate = () => {
+      console.log('RootCauseManager: Categories updated, reloading...');
+      loadAvailableCategories();
     };
     
     window.addEventListener('rootCausesUpdated', handleDataUpdate);
+    window.addEventListener('categoriesUpdated', handleCategoriesUpdate);
     window.addEventListener('analysisComplete', handleDataUpdate);
     
     return () => {
       window.removeEventListener('rootCausesUpdated', handleDataUpdate);
+      window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
       window.removeEventListener('analysisComplete', handleDataUpdate);
     };
   }, []);

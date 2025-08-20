@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getLocalData, saveLocalData } from '../utils/localStorage';
 import { buildRedditAnalysisPrompt } from '../utils/redditAnalysisPrompt';
 import { config } from '../utils/config';
+import { generateCategoryPromptSection, findMatchingCategory } from '../utils/categoryManager';
 import { CategorySuggestion } from '../types';
 import { Brain, Play, Zap, Target, CheckCircle, Clock } from 'lucide-react';
 
@@ -68,9 +69,9 @@ const AdminAnalysis: React.FC = () => {
                 messages: [
                   {
                     role: 'system',
-                    content: `You are a professional lawn care diagnostician analyzing Reddit discussions. 
+                    content: `You are a professional lawn care diagnostician analyzing Reddit discussions.
 
-When you encounter problems that don't fit well into existing categories, suggest new categories.
+${generateCategoryPromptSection()}
 
 Return JSON with this structure:
 {
@@ -122,6 +123,14 @@ Return JSON with this structure:
             const result = JSON.parse(data.choices[0].message.content || '{}');
             
             console.log(`Analysis result for post ${post.id}:`, result);
+            
+            // Check if this problem matches existing categories before suggesting new ones
+            const problemText = `${post.title} ${post.selftext}`;
+            const existingMatch = findMatchingCategory(problemText, 0.6);
+            
+            if (existingMatch) {
+              console.log(`Post ${post.id} matches existing category: ${existingMatch.name}`);
+            }
             
             // Process category suggestions
             if (result.category_suggestions && result.category_suggestions.length > 0) {

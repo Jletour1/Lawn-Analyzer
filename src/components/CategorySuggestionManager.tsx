@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getLocalData, saveLocalData } from '../utils/localStorage';
+import { addNewCategory, getCategoryNames } from '../utils/categoryManager';
 import { CategorySuggestion, CategoryApproval } from '../types';
 import {
   Brain,
@@ -127,13 +128,8 @@ const CategorySuggestionManager: React.FC = () => {
       return;
     }
 
-    const localData = getLocalData();
-    if (!localData.root_causes) {
-      localData.root_causes = [];
-    }
-
-    const newRootCause = {
-      id: `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    // Use the category manager to add the new category
+    const newCategoryId = addNewCategory({
       name: manualCategory.category,
       category: categorizeNewCategory(manualCategory.category),
       description: manualCategory.description,
@@ -155,16 +151,8 @@ const CategorySuggestionManager: React.FC = () => {
       confidence_threshold: 0.8,
       success_rate: 0.8,
       case_count: 0,
-      seasonal_factors: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    localData.root_causes.push(newRootCause);
-    saveLocalData(localData);
-    
-    // Dispatch custom event to notify other components
-    window.dispatchEvent(new CustomEvent('rootCausesUpdated'));
+      seasonal_factors: []
+    });
 
     // Reset form
     setManualCategory({
@@ -177,7 +165,7 @@ const CategorySuggestionManager: React.FC = () => {
     });
     setShowManualForm(false);
 
-    console.log('Added manual root cause:', newRootCause.name);
+    console.log('Added manual root cause:', manualCategory.category, 'with ID:', newCategoryId);
     alert('Category added successfully!');
   };
 
