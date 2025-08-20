@@ -16,7 +16,6 @@ import {
   CheckCircle,
   AlertTriangle,
   Package,
-  Clock,
   Brain,
   FileText,
   Code,
