@@ -58,7 +58,7 @@ export const generateRootCausesFromAnalysis = (analyses: any[]): GeneratedRootCa
 
     const rootCause: GeneratedRootCause = {
       id: `generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: formatProblemName(problemKey),
+      name: formatProblemName(problemKey) || 'Unknown Issue',
       category,
       description: generateDescription(problemKey, groupAnalyses),
       visual_indicators: extractVisualIndicators(groupAnalyses),
@@ -66,7 +66,7 @@ export const generateRootCausesFromAnalysis = (analyses: any[]): GeneratedRootCa
       standard_solutions: solutions,
       standard_recommendations: generateRecommendations(solutions),
       products,
-      confidence_threshold: 0.7,
+      confidence_threshold: Math.max(0.5, Math.min(successRate + 0.2, 0.9)),
       success_rate: successRate,
       case_count: groupAnalyses.length,
       seasonal_factors: extractSeasonalFactors(groupAnalyses),
@@ -199,11 +199,23 @@ const extractCommonProducts = (analyses: any[]): any[] => {
 };
 
 const calculateSuccessRate = (analyses: any[]): number => {
-  const confidenceSum = analyses.reduce((sum, analysis) => sum + (analysis.learning_confidence || 0.5), 0);
-  return confidenceSum / analyses.length;
+  if (analyses.length === 0) return 0.5;
+  
+  const validConfidences = analyses
+    .map(analysis => analysis.learning_confidence || analysis.confidence || 0.5)
+    .filter(conf => !isNaN(conf) && conf >= 0 && conf <= 1);
+  
+  if (validConfidences.length === 0) return 0.5;
+  
+  const confidenceSum = validConfidences.reduce((sum, conf) => sum + conf, 0);
+  return Math.min(Math.max(confidenceSum / validConfidences.length, 0), 1);
 };
 
 const formatProblemName = (problemKey: string): string => {
+  if (!problemKey || problemKey === 'general_lawn_issue') {
+    return 'General Lawn Issue';
+  }
+  
   return problemKey.split('_').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ');
@@ -211,7 +223,9 @@ const formatProblemName = (problemKey: string): string => {
 
 const generateDescription = (problemKey: string, analyses: any[]): string => {
   const commonTerms = extractCommonTerms(analyses);
-  return `${formatProblemName(problemKey)} identified from ${analyses.length} Reddit discussions. ${commonTerms}`;
+  const problemName = formatProblemName(problemKey);
+  const caseCount = analyses.length || 1;
+  return `${problemName} identified from ${caseCount} case${caseCount > 1 ? 's' : ''}. ${commonTerms}`;
 };
 
 const extractVisualIndicators = (analyses: any[]): string[] => {
@@ -230,8 +244,14 @@ const extractVisualIndicators = (analyses: any[]): string[] => {
 };
 
 const generateStandardRootCause = (problemKey: string, analyses: any[]): string => {
-  const mostCommon = analyses[0]?.root_cause || '';
-  return `${formatProblemName(problemKey)}: ${mostCommon.substring(0, 200)}...`;
+  const mostCommon = analyses[0]?.root_cause || 'No specific cause identified';
+  const problemName = formatProblemName(problemKey);
+  
+  if (mostCommon.length > 200) {
+    return `${problemName}: ${mostCommon.substring(0, 200)}...`;
+  }
+  
+  return `${problemName}: ${mostCommon}`;
 };
 
 const generateRecommendations = (solutions: string[]): string[] => {
@@ -256,10 +276,14 @@ const extractSeasonalFactors = (analyses: any[]): string[] => {
 };
 
 const extractCommonTerms = (analyses: any[]): string => {
+  if (!analyses || analyses.length === 0) return 'No additional information available.';
+  
   const terms = analyses.map(a => a.root_cause || '').join(' ').toLowerCase();
   if (terms.includes('fungal') || terms.includes('disease')) return 'Commonly associated with fungal diseases.';
   if (terms.includes('water') || terms.includes('moisture')) return 'Often related to watering issues.';
   if (terms.includes('pest') || terms.includes('insect')) return 'Typically caused by pest activity.';
+  if (terms.includes('weed')) return 'Related to weed management and control.';
+  if (terms.includes('maintenance')) return 'Associated with lawn maintenance practices.';
   return 'Various contributing factors identified.';
 };
 
