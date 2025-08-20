@@ -1207,21 +1207,7 @@ const UnifiedAdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => {
-                            const updatedAnalysis = prompt('Edit root cause:', submission.analysis_result?.rootCause || '');
-                            if (updatedAnalysis && updatedAnalysis.trim()) {
-                              const localData = getLocalData();
-                              const submissionIndex = localData.submissions.findIndex(s => s.id === submission.id);
-                              if (submissionIndex !== -1) {
-                                localData.submissions[submissionIndex].analysis_result = {
-                                  ...localData.submissions[submissionIndex].analysis_result,
-                                  rootCause: updatedAnalysis.trim()
-                                };
-                                saveLocalData(localData);
-                                loadDashboardData(); // Refresh the data
-                              }
-                            }
-                          }}
+                          onClick={() => setSelectedSubmission(submission)}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                         >
                           <Eye className="w-4 h-4" />
