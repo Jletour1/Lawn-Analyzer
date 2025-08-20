@@ -286,17 +286,6 @@ const UnifiedAdminDashboard: React.FC = () => {
   const [emailSearch, setEmailSearch] = useState('');
   const [submissionFilter, setSubmissionFilter] = useState<'all' | 'pending' | 'reviewed' | 'flagged'>('all');
   const [selectedSubmission, setSelectedSubmission] = useState<UserDiagnostic | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({
-    rootCause: '',
-    solutions: [''],
-    confidence: 0.5,
-    healthScore: 5,
-    urgency: 'medium' as 'low' | 'medium' | 'high',
-    difficulty: 'intermediate' as 'beginner' | 'intermediate' | 'expert',
-    costEstimate: '',
-    timeline: ''
-  });
 
   const [stats, setStats] = useState<CollectionStats & {
     todaySubmissions: number;
@@ -1936,6 +1925,190 @@ const UnifiedAdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Analysis Modal */}
+      {showEditModal && selectedSubmission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Edit Analysis</h3>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedSubmission(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Root Cause */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Root Cause *
+                  </label>
+                  <textarea
+                    value={editForm.rootCause}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, rootCause: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Primary diagnosis and reasoning..."
+                  />
+                </div>
+
+                {/* Solutions */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Treatment Solutions
+                    </label>
+                    <button
+                      onClick={addSolution}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      + Add Solution
+                    </button>
+                  </div>
+                  {editForm.solutions.map((solution, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={solution}
+                        onChange={(e) => updateSolution(index, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Treatment recommendation..."
+                      />
+                      {editForm.solutions.length > 1 && (
+                        <button
+                          onClick={() => removeSolution(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Analysis Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Confidence Level
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={editForm.confidence}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, confidence: parseFloat(e.target.value) }))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>Low (0.0)</span>
+                      <span>Current: {editForm.confidence}</span>
+                      <span>High (1.0)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Health Score (1-10)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={editForm.healthScore}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, healthScore: parseInt(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Treatment Urgency
+                    </label>
+                    <select
+                      value={editForm.urgency}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, urgency: e.target.value as 'low' | 'medium' | 'high' }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Difficulty Level
+                    </label>
+                    <select
+                      value={editForm.difficulty}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, difficulty: e.target.value as 'beginner' | 'intermediate' | 'expert' }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="expert">Expert</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cost Estimate
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.costEstimate}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, costEstimate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., $25-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Timeline
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.timeline}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, timeline: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., 2-4 weeks"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedSubmission(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </button>
               </div>
             </div>
           </div>
