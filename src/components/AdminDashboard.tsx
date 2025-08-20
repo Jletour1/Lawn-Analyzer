@@ -286,6 +286,17 @@ const UnifiedAdminDashboard: React.FC = () => {
   const [emailSearch, setEmailSearch] = useState('');
   const [submissionFilter, setSubmissionFilter] = useState<'all' | 'pending' | 'reviewed' | 'flagged'>('all');
   const [selectedSubmission, setSelectedSubmission] = useState<UserDiagnostic | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    rootCause: '',
+    solutions: [''],
+    confidence: 0.5,
+    healthScore: 5,
+    urgency: 'medium' as 'low' | 'medium' | 'high',
+    difficulty: 'intermediate' as 'beginner' | 'intermediate' | 'expert',
+    costEstimate: '',
+    timeline: ''
+  });
 
   const [stats, setStats] = useState<CollectionStats & {
     todaySubmissions: number;
@@ -1207,7 +1218,21 @@ const UnifiedAdminDashboard: React.FC = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => setSelectedSubmission(submission)}
+                          onClick={() => {
+                            const updatedAnalysis = prompt('Edit root cause:', submission.analysis_result?.rootCause || '');
+                            if (updatedAnalysis && updatedAnalysis.trim()) {
+                              const localData = getLocalData();
+                              const submissionIndex = localData.submissions.findIndex(s => s.id === submission.id);
+                              if (submissionIndex !== -1) {
+                                localData.submissions[submissionIndex].analysis_result = {
+                                  ...localData.submissions[submissionIndex].analysis_result,
+                                  rootCause: updatedAnalysis.trim()
+                                };
+                                saveLocalData(localData);
+                                loadDashboardData(); // Refresh the data
+                              }
+                            }
+                          }}
                           className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                         >
                           <Eye className="w-4 h-4" />
