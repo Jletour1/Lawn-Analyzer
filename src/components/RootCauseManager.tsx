@@ -11,7 +11,7 @@ import {
   X,
   XCircle,
   Calendar,
-  Clock
+  Clock,
   Target,
   CheckCircle,
   AlertTriangle,
