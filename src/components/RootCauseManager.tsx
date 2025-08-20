@@ -11,12 +11,11 @@ import {
   X,
   XCircle,
   Calendar,
-  Clock
+  Clock,
   Target,
   CheckCircle,
   AlertTriangle,
   Package,
-  Clock,
   Brain,
   FileText,
   Code,
@@ -26,7 +25,6 @@ import {
 
 const RootCauseManager: React.FC = () => {
   const [rootCauses, setRootCauses] = useState<RootCause[]>([]);
-  const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [filteredRootCauses, setFilteredRootCauses] = useState<RootCause[]>([]);
   const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
@@ -138,10 +136,6 @@ const RootCauseManager: React.FC = () => {
     } else {
       setSelectedForDelete(new Set());
     }
-  };
-
-  const getScheduleCount = (rootCauseId: string): number => {
-    return treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId).length;
   };
 
   const handleBulkDelete = () => {
