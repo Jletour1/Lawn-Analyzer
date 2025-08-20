@@ -121,6 +121,8 @@ Return JSON with this structure:
             const data = await response.json();
             const result = JSON.parse(data.choices[0].message.content || '{}');
             
+            console.log(`Analysis result for post ${post.id}:`, result);
+            
             // Process category suggestions
             if (result.category_suggestions && result.category_suggestions.length > 0) {
               const categorySuggestions = result.category_suggestions.map((suggestion: any) => ({
@@ -206,10 +208,16 @@ Return JSON with this structure:
           localData.category_suggestions = [];
         }
         localData.category_suggestions.push(...allCategorySuggestions);
+        saveLocalData(localData);
         console.log(`Saved ${allCategorySuggestions.length} category suggestions for admin review`);
+      } else {
+        console.log('No category suggestions were generated during analysis');
       }
       
-      saveLocalData(localData);
+      // Save analyses even if no category suggestions
+      if (allCategorySuggestions.length === 0) {
+        saveLocalData(localData);
+      }
       
       console.log('REAL AI analysis complete:', analyses.length, 'posts analyzed');
       console.log('Category suggestions generated:', allCategorySuggestions.length);
