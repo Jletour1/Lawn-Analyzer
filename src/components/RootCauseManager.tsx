@@ -33,6 +33,27 @@ const RootCauseManager: React.FC = () => {
   const [showAIDocumentation, setShowAIDocumentation] = useState<RootCause | null>(null);
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleFormData, setScheduleFormData] = useState({
+    name: '',
+    description: '',
+    total_duration: '',
+    difficulty_level: 'intermediate' as 'beginner' | 'intermediate' | 'expert',
+    steps: [
+      {
+        step_number: 1,
+        title: '',
+        description: '',
+        timing: '',
+        season: '',
+        products_needed: [''],
+        notes: '',
+        is_critical: false
+      }
+    ],
+    success_indicators: ['']
+  });
+  const [selectedRootCauseForSchedule, setSelectedRootCauseForSchedule] = useState<string>('');
   const [filters, setFilters] = useState({
     category: 'all' as 'all' | 'disease' | 'pest' | 'weed' | 'environmental' | 'maintenance',
     confidenceRange: 'all' as 'all' | 'high' | 'medium' | 'low',
