@@ -140,6 +140,10 @@ const RootCauseManager: React.FC = () => {
     }
   };
 
+  const getScheduleCount = (rootCauseId: string): number => {
+    return treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId).length;
+  };
+
   const handleBulkDelete = () => {
     if (selectedForDelete.size === 0) return;
     setShowBulkDeleteConfirm(true);
