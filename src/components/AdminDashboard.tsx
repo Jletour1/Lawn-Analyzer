@@ -397,6 +397,128 @@ const AdminDashboard: React.FC = () => {
         )}
       </div>
 
+      {/* Reddit Data Collection Status */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Reddit Data Collection</h3>
+          <div className="flex items-center space-x-3">
+            <button className="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+              <Database className="w-4 h-4" />
+              <span>View Collection</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-orange-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-600">Posts Collected</p>
+                <p className="text-2xl font-bold text-orange-900">1,247</p>
+              </div>
+              <Database className="w-8 h-8 text-orange-600" />
+            </div>
+          </div>
+
+          <div className="bg-blue-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">With Images</p>
+                <p className="text-2xl font-bold text-blue-900">892</p>
+              </div>
+              <Users className="w-8 h-8 text-blue-600" />
+            </div>
+          </div>
+
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Analyzed</p>
+                <p className="text-2xl font-bold text-green-900">743</p>
+              </div>
+              <Brain className="w-8 h-8 text-green-600" />
+            </div>
+          </div>
+
+          <div className="bg-purple-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">Last Run</p>
+                <p className="text-sm font-bold text-purple-900">2 hours ago</p>
+              </div>
+              <Clock className="w-8 h-8 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-orange-50 rounded-lg">
+          <p className="text-sm text-orange-800">
+            <strong>Status:</strong> Automatic collection running every 6 hours. Next collection in 4 hours.
+          </p>
+        </div>
+      </div>
+
+      {/* Email Collection Status */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Email Collection & Outreach</h3>
+          <div className="flex items-center space-x-3">
+            <button className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+              <Users className="w-4 h-4" />
+              <span>Manage Emails</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-indigo-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-indigo-600">Total Emails</p>
+                <p className="text-2xl font-bold text-indigo-900">156</p>
+              </div>
+              <Users className="w-8 h-8 text-indigo-600" />
+            </div>
+          </div>
+
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Active Users</p>
+                <p className="text-2xl font-bold text-green-900">89</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-yellow-600">Follow-ups Sent</p>
+                <p className="text-2xl font-bold text-yellow-900">34</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-yellow-600" />
+            </div>
+          </div>
+
+          <div className="bg-red-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-600">Expert Reviews</p>
+                <p className="text-2xl font-bold text-red-900">12</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
+          <p className="text-sm text-indigo-800">
+            <strong>Recent Activity:</strong> 23 new email subscribers this week. 5 follow-up emails scheduled for flagged cases.
+          </p>
+        </div>
+      </div>
+
       {/* View Submission Modal */}
       {selectedSubmission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
