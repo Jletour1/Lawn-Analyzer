@@ -4,6 +4,7 @@ import { addUserSubmission, LocalUserSubmission } from '../utils/localStorage';
 import { performRealAnalysis } from '../utils/realAnalysis';
 import { performMockAnalysis } from '../utils/mockAnalysis';
 import { config } from '../utils/config';
+import { getCategoryNames } from '../utils/categoryManager';
 
 const UserDiagnostic: React.FC = () => {
   const [step, setStep] = useState<'upload' | 'details' | 'analyzing' | 'results'>('upload');
