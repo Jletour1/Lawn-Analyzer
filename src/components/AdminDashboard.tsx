@@ -810,27 +810,6 @@ const UnifiedAdminDashboard: React.FC = () => {
     }
   };
 
-  const addSolution = () => {
-    setEditForm(prev => ({
-      ...prev,
-      solutions: [...(prev.solutions || []), '']
-    }));
-  };
-
-  const updateSolution = (index: number, value: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      solutions: (prev.solutions || []).map((sol, i) => i === index ? value : sol)
-    }));
-  };
-
-  const removeSolution = (index: number) => {
-    setEditForm(prev => ({
-      ...prev,
-      solutions: (prev.solutions || []).filter((_, i) => i !== index)
-    }));
-  };
-
   const handleSave = () => {
     if (!editingId) return;
 
@@ -910,6 +889,27 @@ const UnifiedAdminDashboard: React.FC = () => {
     setEditForm({});
   };
 
+  const addSolution = () => {
+    setEditForm(prev => ({
+      ...prev,
+      solutions: [...(prev.solutions || []), '']
+    }));
+  };
+
+  const updateSolution = (index: number, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      solutions: (prev.solutions || []).map((sol, i) => i === index ? value : sol)
+    }));
+  };
+
+  const removeSolution = (index: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      solutions: (prev.solutions || []).filter((_, i) => i !== index)
+    }));
+  };
+
   const handleSaveEdit = () => {
     if (!editingSubmission) return;
 
@@ -935,7 +935,6 @@ const UnifiedAdminDashboard: React.FC = () => {
 
     setShowEditModal(false);
     setEditingSubmission(null);
-    setEditForm({});
     setSelectedSubmission(null);
   };
 
