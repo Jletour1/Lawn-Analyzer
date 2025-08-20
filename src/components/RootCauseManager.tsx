@@ -33,27 +33,6 @@ const RootCauseManager: React.FC = () => {
   const [showAIDocumentation, setShowAIDocumentation] = useState<RootCause | null>(null);
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [scheduleFormData, setScheduleFormData] = useState({
-    name: '',
-    description: '',
-    total_duration: '',
-    difficulty_level: 'intermediate' as 'beginner' | 'intermediate' | 'expert',
-    steps: [
-      {
-        step_number: 1,
-        title: '',
-        description: '',
-        timing: '',
-        season: '',
-        products_needed: [''],
-        notes: '',
-        is_critical: false
-      }
-    ],
-    success_indicators: ['']
-  });
-  const [selectedRootCauseForSchedule, setSelectedRootCauseForSchedule] = useState<string>('');
   const [filters, setFilters] = useState({
     category: 'all' as 'all' | 'disease' | 'pest' | 'weed' | 'environmental' | 'maintenance',
     confidenceRange: 'all' as 'all' | 'high' | 'medium' | 'low',
@@ -1394,6 +1373,289 @@ const RootCauseManager: React.FC = () => {
                 >
                   <Save className="w-4 h-4" />
                   <span>Save Changes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Schedule Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Add Treatment Schedule</h3>
+                <button
+                  onClick={() => {
+                    setShowScheduleModal(false);
+                    setSelectedRootCauseForSchedule('');
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Schedule Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={scheduleFormData.name}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., Brown Patch Treatment Plan"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Total Duration
+                    </label>
+                    <input
+                      type="text"
+                      value={scheduleFormData.total_duration}
+                      onChange={(e) => setScheduleFormData(prev => ({ ...prev, total_duration: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., 4-6 weeks"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={scheduleFormData.description}
+                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Describe the overall treatment approach..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Difficulty Level
+                  </label>
+                  <select
+                    value={scheduleFormData.difficulty_level}
+                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, difficulty_level: e.target.value as any }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </div>
+
+                {/* Treatment Steps */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-medium text-white">Treatment Steps</h4>
+                    <button
+                      onClick={addScheduleStep}
+                      className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Step</span>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {scheduleFormData.steps.map((step, stepIndex) => (
+                      <div key={stepIndex} className="p-4 bg-gray-700 rounded-lg">
+                        <div className="flex items-center justify-between mb-4">
+                          <h5 className="font-medium text-white">Step {stepIndex + 1}</h5>
+                          {scheduleFormData.steps.length > 1 && (
+                            <button
+                              onClick={() => removeScheduleStep(stepIndex)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                              Step Title *
+                            </label>
+                            <input
+                              type="text"
+                              value={step.title}
+                              onChange={(e) => updateScheduleStep(stepIndex, 'title', e.target.value)}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                              placeholder="e.g., Apply Fungicide Treatment"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                              Timing
+                            </label>
+                            <input
+                              type="text"
+                              value={step.timing}
+                              onChange={(e) => updateScheduleStep(stepIndex, 'timing', e.target.value)}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                              placeholder="e.g., Week 1, Day 3-5"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Description *
+                          </label>
+                          <textarea
+                            value={step.description}
+                            onChange={(e) => updateScheduleStep(stepIndex, 'description', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            rows={2}
+                            placeholder="Detailed instructions for this step..."
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                              Season (Optional)
+                            </label>
+                            <select
+                              value={step.season}
+                              onChange={(e) => updateScheduleStep(stepIndex, 'season', e.target.value)}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            >
+                              <option value="">Any Season</option>
+                              <option value="Spring">Spring</option>
+                              <option value="Summer">Summer</option>
+                              <option value="Fall">Fall</option>
+                              <option value="Winter">Winter</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="flex items-center space-x-3">
+                              <input
+                                type="checkbox"
+                                checked={step.is_critical}
+                                onChange={(e) => updateScheduleStep(stepIndex, 'is_critical', e.target.checked)}
+                                className="w-4 h-4 text-red-600 border-gray-500 rounded focus:ring-red-500"
+                              />
+                              <span className="text-sm font-medium text-gray-300">Critical Step</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Products Needed */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-300">
+                              Products Needed
+                            </label>
+                            <button
+                              onClick={() => addProductToStep(stepIndex)}
+                              className="text-green-400 hover:text-green-300 text-sm"
+                            >
+                              + Add Product
+                            </button>
+                          </div>
+                          {step.products_needed.map((product, productIndex) => (
+                            <div key={productIndex} className="flex items-center space-x-2 mb-2">
+                              <input
+                                type="text"
+                                value={product}
+                                onChange={(e) => updateStepProduct(stepIndex, productIndex, e.target.value)}
+                                className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                placeholder="e.g., Fungicide spray"
+                              />
+                              {step.products_needed.length > 1 && (
+                                <button
+                                  onClick={() => removeStepProduct(stepIndex, productIndex)}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Notes (Optional)
+                          </label>
+                          <textarea
+                            value={step.notes}
+                            onChange={(e) => updateScheduleStep(stepIndex, 'notes', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            rows={2}
+                            placeholder="Additional notes or warnings..."
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Success Indicators */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Success Indicators
+                    </label>
+                    <button
+                      onClick={addSuccessIndicator}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Indicator
+                    </button>
+                  </div>
+                  {scheduleFormData.success_indicators.map((indicator, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={indicator}
+                        onChange={(e) => updateSuccessIndicator(index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., New green growth appears"
+                      />
+                      {scheduleFormData.success_indicators.length > 1 && (
+                        <button
+                          onClick={() => removeSuccessIndicator(index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={() => {
+                    setShowScheduleModal(false);
+                    setSelectedRootCauseForSchedule('');
+                  }}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleScheduleSubmit}
+                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Create Schedule</span>
                 </button>
               </div>
             </div>
