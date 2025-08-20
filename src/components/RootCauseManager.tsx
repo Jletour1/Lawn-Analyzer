@@ -145,6 +145,11 @@ const RootCauseManager: React.FC = () => {
     setTreatmentSchedules(treatmentSchedulesData);
   };
 
+  const loadAvailableCategories = () => {
+    const categoryNames = getCategoryNames();
+    setAvailableCategories(categoryNames);
+  };
+
   const applyFilters = () => {
     let filtered = [...rootCauses];
 

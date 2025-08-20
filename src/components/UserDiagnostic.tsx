@@ -24,6 +24,18 @@ const UserDiagnostic: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string>('');
+  const [availableGrassTypes, setAvailableGrassTypes] = useState<string[]>([]);
+
+  // Load available categories for better grass type suggestions
+  React.useEffect(() => {
+    const categoryNames = getCategoryNames();
+    // Extract grass types from category names that might contain grass type info
+    const grassTypes = [
+      'bermuda', 'zoysia', 'st-augustine', 'kentucky-bluegrass', 
+      'tall-fescue', 'perennial-ryegrass', 'unknown'
+    ];
+    setAvailableGrassTypes(grassTypes);
+  }, []);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
