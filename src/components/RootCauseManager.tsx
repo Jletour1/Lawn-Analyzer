@@ -68,8 +68,35 @@ const RootCauseManager: React.FC = () => {
 
   const loadData = () => {
     const localData = getLocalData();
-    const rootCausesData = (localData.root_causes || []).filter(item => item != null && item.id);
-    const treatmentSchedulesData = (localData.treatment_schedules || []).filter(item => item != null && item.id);
+    
+    // Load root causes with more robust filtering
+    const rootCausesData = (localData.root_causes || [])
+      .filter(item => item != null && (item.id || item.name)) // Allow items with at least an id or name
+      .map(item => ({
+        ...item,
+        // Ensure required fields have defaults
+        id: item.id || `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        visual_indicators: item.visual_indicators || [],
+        standard_solutions: item.standard_solutions || [],
+        standard_recommendations: item.standard_recommendations || [],
+        products: item.products || [],
+        confidence_threshold: item.confidence_threshold ?? 0.7,
+        success_rate: item.success_rate ?? 0.8,
+        case_count: item.case_count ?? 0,
+        seasonal_factors: item.seasonal_factors || [],
+        created_at: item.created_at || new Date().toISOString(),
+        updated_at: item.updated_at || new Date().toISOString()
+      }));
+    
+    // Load treatment schedules
+    const treatmentSchedulesData = (localData.treatment_schedules || [])
+      .filter(item => item != null && item.id);
+
+    console.log('Loaded root causes:', rootCausesData); // Debug log
+    console.log('Loaded treatment schedules:', treatmentSchedulesData); // Debug log
+    
+    setRootCauses(rootCausesData);
+    setTreatmentSchedules(treatmentSchedulesData);
   };
 
   const applyFilters = () => {
@@ -112,11 +139,12 @@ const RootCauseManager: React.FC = () => {
       filtered = filtered.filter(rc => 
         rc.name.toLowerCase().includes(searchLower) ||
         rc.description.toLowerCase().includes(searchLower) ||
-        rc.visual_indicators.some(vi => vi.toLowerCase().includes(searchLower)) ||
-        rc.standard_solutions.some(sol => sol.toLowerCase().includes(searchLower))
+        (rc.visual_indicators && rc.visual_indicators.some(vi => vi.toLowerCase().includes(searchLower))) ||
+        (rc.standard_solutions && rc.standard_solutions.some(sol => sol.toLowerCase().includes(searchLower)))
       );
     }
 
+    console.log('Filtered root causes:', filtered); // Debug log
     setFilteredRootCauses(filtered);
   };
 
@@ -170,8 +198,8 @@ const RootCauseManager: React.FC = () => {
       name: rootCause.name,
       category: rootCause.category,
       description: rootCause.description,
-      visual_indicators: rootCause.visual_indicators.length > 0 ? rootCause.visual_indicators : [''],
-      standard_solutions: rootCause.standard_solutions.length > 0 ? rootCause.standard_solutions : [''],
+      visual_indicators: rootCause.visual_indicators && rootCause.visual_indicators.length > 0 ? rootCause.visual_indicators : [''],
+      standard_solutions: rootCause.standard_solutions && rootCause.standard_solutions.length > 0 ? rootCause.standard_solutions : [''],
       confidence_threshold: rootCause.confidence_threshold || 0.7,
       success_rate: rootCause.success_rate || 0.8
     });
@@ -334,6 +362,37 @@ const RootCauseManager: React.FC = () => {
     return `${Math.round(value * 100)}%`;
   };
 
+  // Add a debug component to show raw data
+  const DebugInfo = () => {
+    if (process.env.NODE_ENV !== 'development') return null;
+    
+    return (
+      <details className="mb-4 p-4 bg-gray-900 rounded-lg">
+        <summary className="text-gray-300 cursor-pointer">Debug Info (Development Only)</summary>
+        <div className="mt-2 space-y-2 text-xs">
+          <div>
+            <strong className="text-green-400">Raw Root Causes ({rootCauses.length}):</strong>
+            <pre className="mt-1 text-gray-400 overflow-auto max-h-32">
+              {JSON.stringify(rootCauses, null, 2)}
+            </pre>
+          </div>
+          <div>
+            <strong className="text-blue-400">Filtered Root Causes ({filteredRootCauses.length}):</strong>
+            <pre className="mt-1 text-gray-400 overflow-auto max-h-32">
+              {JSON.stringify(filteredRootCauses.map(rc => ({ id: rc.id, name: rc.name, category: rc.category })), null, 2)}
+            </pre>
+          </div>
+          <div>
+            <strong className="text-purple-400">Current Filters:</strong>
+            <pre className="mt-1 text-gray-400">
+              {JSON.stringify(filters, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </details>
+    );
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -346,15 +405,27 @@ const RootCauseManager: React.FC = () => {
               <p className="text-gray-400 mt-1">Manage diagnostic categories and treatment protocols</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Root Cause</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={loadData}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Database className="w-4 h-4" />
+              <span>Refresh Data</span>
+            </button>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Root Cause</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Debug Info */}
+      <DebugInfo />
 
       {/* Filters and Bulk Actions */}
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
@@ -494,147 +565,93 @@ const RootCauseManager: React.FC = () => {
                   />
                   
                   <div className="flex-1">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="text-lg font-medium text-white">{rootCause.name}</h4>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(rootCause.category)}`}>
-                        {rootCause.category}
-                      </span>
-                      <span className="px-2 py-1 bg-gray-600 text-gray-300 text-xs rounded-full">
-                        {getScheduleCount(rootCause.id)} schedules
-                      </span>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="text-lg font-medium text-white">{rootCause.name}</h4>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(rootCause.category)}`}>
+                            {rootCause.category}
+                          </span>
+                          <span className="px-2 py-1 bg-gray-600 text-gray-300 text-xs rounded-full">
+                            {getScheduleCount(rootCause.id)} schedules
+                          </span>
+                        </div>
+                        <p className="text-gray-300 mb-2">{rootCause.description}</p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-400">
+                          <span>Confidence: {formatConfidence(rootCause.confidence_threshold)}</span>
+                          <span>Cases: {rootCause.case_count || 0}</span>
+                          <span>Success: {formatSuccessRate(rootCause.success_rate)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setShowAIDocumentation(rootCause)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Brain className="w-4 h-4" />
+                          <span>AI Data</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedRootCause(rootCause)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>View</span>
+                        </button>
+                        <button
+                          onClick={() => handleEdit(rootCause)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(rootCause.id)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-gray-300 mb-2">{rootCause.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-400">
-                      <span>Confidence: {formatConfidence(rootCause.confidence_threshold)}</span>
-                      <span>Cases: {rootCause.case_count || 0}</span>
-                      <span>Success: {formatSuccessRate(rootCause.success_rate)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setShowAIDocumentation(rootCause)}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Brain className="w-4 h-4" />
-                      <span>AI Data</span>
-                    </button>
-                    <button
-                      onClick={() => setSelectedRootCause(rootCause)}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>View</span>
-                    </button>
-                    <button
-                      onClick={() => setEditingRootCause(rootCause)}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(rootCause.id)}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </div>
 
-                {/* Visual Indicators */}
-                {rootCause.visual_indicators.length > 0 && (
-                  <div className="mt-3">
-                    <h5 className="text-sm font-medium text-gray-300 mb-2">Visual Indicators:</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {rootCause.visual_indicators.map((indicator, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          {indicator}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-
-              {/* Treatment Schedules Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-medium text-gray-900">Treatment Schedules</h4>
-                  <button
-                    onClick={() => alert('Treatment schedule creation coming soon! This will allow you to create step-by-step treatment plans for this root cause.')}
-                    className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Schedule</span>
-                  </button>
-                </div>
-                
-                {getScheduleCount(selectedRootCause.id) > 0 ? (
-                  <div className="space-y-3">
-                    {treatmentSchedules
-                      .filter(schedule => schedule.root_cause_id === selectedRootCause.id)
-                      .map((schedule) => (
-                        <div key={schedule.id} className="p-4 bg-purple-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <h5 className="font-medium text-purple-900">{schedule.name}</h5>
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                schedule.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
-                                schedule.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                                {schedule.difficulty_level}
-                              </span>
-                              <span className="text-xs text-purple-600">
-                                {schedule.steps.length} steps
-                              </span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-purple-700 mb-2">{schedule.description}</p>
-                          <div className="flex items-center space-x-4 text-xs text-purple-600">
-                            <span className="flex items-center space-x-1">
-                              <Clock className="w-3 h-3" />
-                              <span>Duration: {schedule.total_duration}</span>
+                    {/* Visual Indicators */}
+                    {rootCause.visual_indicators && rootCause.visual_indicators.length > 0 && (
+                      <div className="mt-3">
+                        <h5 className="text-sm font-medium text-gray-300 mb-2">Visual Indicators:</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {rootCause.visual_indicators.map((indicator, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              {indicator}
                             </span>
-                            <span>Success indicators: {schedule.success_indicators.length}</span>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg">
-                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 mb-2">No treatment schedules yet</p>
-                    <p className="text-sm text-gray-500">Create step-by-step treatment plans for this root cause</p>
-                  </div>
-                )}
-              </div>
-                {/* Products */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-medium text-gray-300">Recommended Products ({rootCause.products?.length || 0})</h5>
-                    <button className="flex items-center space-x-1 text-green-400 hover:text-green-300 text-sm">
-                      <Plus className="w-4 h-4" />
-                      <span>Add Product</span>
-                    </button>
-                  </div>
-                  {rootCause.products && rootCause.products.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {rootCause.products.slice(0, 2).map((product, idx) => (
-                        <div key={idx} className="p-2 bg-gray-600 rounded text-xs">
-                          <div className="font-medium text-white">{product.name}</div>
-                          <div className="text-gray-400">{product.category} • {product.price_range}</div>
+                      </div>
+                    )}
+
+                    {/* Products */}
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="text-sm font-medium text-gray-300">Recommended Products ({rootCause.products?.length || 0})</h5>
+                        <button className="flex items-center space-x-1 text-green-400 hover:text-green-300 text-sm">
+                          <Plus className="w-4 h-4" />
+                          <span>Add Product</span>
+                        </button>
+                      </div>
+                      {rootCause.products && rootCause.products.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {rootCause.products.slice(0, 2).map((product, idx) => (
+                            <div key={idx} className="p-2 bg-gray-600 rounded text-xs">
+                              <div className="font-medium text-white">{product.name}</div>
+                              <div className="text-gray-400">{product.category} • {product.price_range}</div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : (
+                        <p className="text-gray-500 text-sm">No products added yet</p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">No products added yet</p>
-                  )}
-                </div>
                   </div>
                 </div>
               </div>
@@ -761,7 +778,7 @@ const RootCauseManager: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Identified Visual Indicators</label>
                       <div className="bg-gray-600 rounded-lg p-3">
-                        {showAIDocumentation.visual_indicators.length > 0 ? (
+                        {showAIDocumentation.visual_indicators && showAIDocumentation.visual_indicators.length > 0 ? (
                           <ul className="space-y-1">
                             {showAIDocumentation.visual_indicators.map((indicator, idx) => (
                               <li key={idx} className="flex items-center space-x-2 text-sm text-gray-200">
@@ -780,7 +797,7 @@ const RootCauseManager: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Generated Solutions</label>
                       <div className="bg-gray-600 rounded-lg p-3">
-                        {showAIDocumentation.standard_solutions.length > 0 ? (
+                        {showAIDocumentation.standard_solutions && showAIDocumentation.standard_solutions.length > 0 ? (
                           <ul className="space-y-1">
                             {showAIDocumentation.standard_solutions.map((solution, idx) => (
                               <li key={idx} className="flex items-center space-x-2 text-sm text-gray-200">
@@ -799,7 +816,7 @@ const RootCauseManager: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Recommendations</label>
                       <div className="bg-gray-600 rounded-lg p-3">
-                        {showAIDocumentation.standard_recommendations.length > 0 ? (
+                        {showAIDocumentation.standard_recommendations && showAIDocumentation.standard_recommendations.length > 0 ? (
                           <ul className="space-y-1">
                             {showAIDocumentation.standard_recommendations.map((rec, idx) => (
                               <li key={idx} className="flex items-center space-x-2 text-sm text-gray-200">
@@ -815,7 +832,7 @@ const RootCauseManager: React.FC = () => {
                     </div>
 
                     {/* Seasonal Factors */}
-                    {showAIDocumentation.seasonal_factors.length > 0 && (
+                    {showAIDocumentation.seasonal_factors && showAIDocumentation.seasonal_factors.length > 0 && (
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Seasonal Factors</label>
                         <div className="bg-gray-600 rounded-lg p-3">
@@ -929,26 +946,34 @@ const RootCauseManager: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h5 className="text-sm font-medium text-gray-300 mb-2">Visual Indicators</h5>
-                    <ul className="text-sm text-gray-200 space-y-1">
-                      {selectedRootCause.visual_indicators.map((indicator, idx) => (
-                        <li key={idx} className="flex items-center space-x-2">
-                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                          <span>{indicator}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {selectedRootCause.visual_indicators && selectedRootCause.visual_indicators.length > 0 ? (
+                      <ul className="text-sm text-gray-200 space-y-1">
+                        {selectedRootCause.visual_indicators.map((indicator, idx) => (
+                          <li key={idx} className="flex items-center space-x-2">
+                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+                            <span>{indicator}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-400 text-sm">No visual indicators documented</p>
+                    )}
                   </div>
 
                   <div>
                     <h5 className="text-sm font-medium text-gray-300 mb-2">Standard Solutions</h5>
-                    <ul className="text-sm text-gray-200 space-y-1">
-                      {selectedRootCause.standard_solutions.map((solution, idx) => (
-                        <li key={idx} className="flex items-center space-x-2">
-                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                          <span>{solution}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {selectedRootCause.standard_solutions && selectedRootCause.standard_solutions.length > 0 ? (
+                      <ul className="text-sm text-gray-200 space-y-1">
+                        {selectedRootCause.standard_solutions.map((solution, idx) => (
+                          <li key={idx} className="flex items-center space-x-2">
+                            <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                            <span>{solution}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-400 text-sm">No solutions documented</p>
+                    )}
                   </div>
                 </div>
 
@@ -969,6 +994,60 @@ const RootCauseManager: React.FC = () => {
                     <div className="text-2xl font-bold text-white">{getScheduleCount(selectedRootCause.id)}</div>
                     <div className="text-gray-400">Schedules</div>
                   </div>
+                </div>
+
+                {/* Treatment Schedules Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-medium text-white">Treatment Schedules</h4>
+                    <button
+                      onClick={() => alert('Treatment schedule creation coming soon! This will allow you to create step-by-step treatment plans for this root cause.')}
+                      className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Schedule</span>
+                    </button>
+                  </div>
+                  
+                  {getScheduleCount(selectedRootCause.id) > 0 ? (
+                    <div className="space-y-3">
+                      {treatmentSchedules
+                        .filter(schedule => schedule.root_cause_id === selectedRootCause.id)
+                        .map((schedule) => (
+                          <div key={schedule.id} className="p-4 bg-gray-700 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-medium text-white">{schedule.name}</h5>
+                              <div className="flex items-center space-x-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  schedule.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
+                                  schedule.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {schedule.difficulty_level}
+                                </span>
+                                <span className="text-xs text-gray-300">
+                                  {schedule.steps.length} steps
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-300 mb-2">{schedule.description}</p>
+                            <div className="flex items-center space-x-4 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Clock className="w-3 h-3" />
+                                <span>Duration: {schedule.total_duration}</span>
+                              </span>
+                              <span>Success indicators: {schedule.success_indicators.length}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-700 rounded-lg">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-300 mb-2">No treatment schedules yet</p>
+                      <p className="text-sm text-gray-400">Create step-by-step treatment plans for this root cause</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
