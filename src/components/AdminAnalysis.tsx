@@ -213,6 +213,11 @@ Return JSON with this structure:
       
       console.log('REAL AI analysis complete:', analyses.length, 'posts analyzed');
       console.log('Category suggestions generated:', allCategorySuggestions.length);
+      
+      // Dispatch events to notify other components
+      window.dispatchEvent(new CustomEvent('analysisComplete'));
+      window.dispatchEvent(new CustomEvent('categorySuggestionsUpdated'));
+      
       setIsAnalyzing(false);
       setProgress(100);
       

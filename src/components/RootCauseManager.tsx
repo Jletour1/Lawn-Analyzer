@@ -37,7 +37,8 @@ const RootCauseManager: React.FC = () => {
     category: 'all' as 'all' | 'disease' | 'pest' | 'weed' | 'environmental' | 'maintenance',
     confidenceRange: 'all' as 'all' | 'high' | 'medium' | 'low',
     caseCount: 'all' as 'all' | 'many' | 'few' | 'none',
-    searchTerm: ''
+    searchTerm: '',
+    showBlanks: 'all' as 'all' | 'blanks' | 'complete'
   });
   const [editForm, setEditForm] = useState({
     name: '',
@@ -47,6 +48,26 @@ const RootCauseManager: React.FC = () => {
     standard_solutions: [''],
     confidence_threshold: 0.7,
     success_rate: 0.8
+  });
+
+  // Schedule form states
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedRootCauseForSchedule, setSelectedRootCauseForSchedule] = useState('');
+  const [scheduleFormData, setScheduleFormData] = useState({
+    name: '',
+    description: '',
+    total_duration: '',
+    difficulty_level: 'beginner' as 'beginner' | 'intermediate' | 'expert',
+    steps: [{
+      title: '',
+      description: '',
+      timing: '',
+      season: '',
+      is_critical: false,
+      products_needed: [''],
+      notes: ''
+    }],
+    success_indicators: ['']
   });
 
   const [newRootCause, setNewRootCause] = useState({
@@ -60,6 +81,20 @@ const RootCauseManager: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    
+    // Listen for data updates from other components
+    const handleDataUpdate = () => {
+      console.log('RootCauseManager: Received data update event, reloading...');
+      loadData();
+    };
+    
+    window.addEventListener('rootCausesUpdated', handleDataUpdate);
+    window.addEventListener('analysisComplete', handleDataUpdate);
+    
+    return () => {
+      window.removeEventListener('rootCausesUpdated', handleDataUpdate);
+      window.removeEventListener('analysisComplete', handleDataUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,7 +103,7 @@ const RootCauseManager: React.FC = () => {
 
   const loadData = () => {
     const localData = getLocalData();
-    
+
     // Load root causes with more robust filtering
     const rootCausesData = (localData.root_causes || [])
       .filter(item => item != null && (item.id || item.name)) // Allow items with at least an id or name
@@ -87,14 +122,14 @@ const RootCauseManager: React.FC = () => {
         created_at: item.created_at || new Date().toISOString(),
         updated_at: item.updated_at || new Date().toISOString()
       }));
-    
+
     // Load treatment schedules
     const treatmentSchedulesData = (localData.treatment_schedules || [])
       .filter(item => item != null && item.id);
 
     console.log('Loaded root causes:', rootCausesData); // Debug log
     console.log('Loaded treatment schedules:', treatmentSchedulesData); // Debug log
-    
+
     setRootCauses(rootCausesData);
     setTreatmentSchedules(treatmentSchedulesData);
   };
@@ -133,18 +168,37 @@ const RootCauseManager: React.FC = () => {
       });
     }
 
-    // Search term filter
+    // Search term filter - add safety checks
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
-      filtered = filtered.filter(rc => 
-        rc.name.toLowerCase().includes(searchLower) ||
-        rc.description.toLowerCase().includes(searchLower) ||
-        (rc.visual_indicators && rc.visual_indicators.some(vi => vi.toLowerCase().includes(searchLower))) ||
-        (rc.standard_solutions && rc.standard_solutions.some(sol => sol.toLowerCase().includes(searchLower)))
-      );
+      filtered = filtered.filter(rc => {
+        // Safety checks to prevent crashes
+        const name = rc.name || '';
+        const description = rc.description || '';
+        const visualIndicators = rc.visual_indicators || [];
+        const standardSolutions = rc.standard_solutions || [];
+
+        return name.toLowerCase().includes(searchLower) ||
+               description.toLowerCase().includes(searchLower) ||
+               visualIndicators.some(vi => vi && vi.toLowerCase().includes(searchLower)) ||
+               standardSolutions.some(sol => sol && sol.toLowerCase().includes(searchLower));
+      });
     }
 
     console.log('Filtered root causes:', filtered); // Debug log
+
+    // Blank/incomplete filter
+    if (filters.showBlanks !== 'all') {
+      filtered = filtered.filter(rc => {
+        const isBlank = !rc.name || rc.name.trim() === '' ||
+                       !rc.description || rc.description.trim() === '' ||
+                       (!rc.visual_indicators || rc.visual_indicators.length === 0 || rc.visual_indicators.every(vi => !vi || vi.trim() === '')) ||
+                       (!rc.standard_solutions || rc.standard_solutions.length === 0 || rc.standard_solutions.every(sol => !sol || sol.trim() === ''));
+
+        return filters.showBlanks === 'blanks' ? isBlank : !isBlank;
+      });
+    }
+
     setFilteredRootCauses(filtered);
   };
 
@@ -160,11 +214,38 @@ const RootCauseManager: React.FC = () => {
 
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
+      // Simply select all currently visible/filtered items
       setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
     } else {
+      // Clear all selections
       setSelectedForDelete(new Set());
     }
   };
+
+  // Add keyboard shortcuts for bulk operations
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+A or Cmd+A to select all visible
+      if ((event.ctrlKey || event.metaKey) && event.key === 'a' && !event.shiftKey) {
+        event.preventDefault();
+        setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
+      }
+
+      // Delete key to delete selected
+      if (event.key === 'Delete' && selectedForDelete.size > 0) {
+        event.preventDefault();
+        handleBulkDelete();
+      }
+
+      // Escape to clear selection
+      if (event.key === 'Escape') {
+        setSelectedForDelete(new Set());
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [filteredRootCauses, selectedForDelete]);
 
   const handleBulkDelete = () => {
     if (selectedForDelete.size === 0) return;
@@ -187,7 +268,8 @@ const RootCauseManager: React.FC = () => {
       category: 'all',
       confidenceRange: 'all',
       caseCount: 'all',
-      searchTerm: ''
+      searchTerm: '',
+      showBlanks: 'all'
     });
     setSelectedForDelete(new Set());
   };
@@ -210,7 +292,7 @@ const RootCauseManager: React.FC = () => {
 
     const localData = getLocalData();
     const rootCauseIndex = localData.root_causes?.findIndex(rc => rc.id === editingRootCause.id);
-    
+
     if (rootCauseIndex !== undefined && rootCauseIndex >= 0 && localData.root_causes) {
       localData.root_causes[rootCauseIndex] = {
         ...editingRootCause,
@@ -247,7 +329,7 @@ const RootCauseManager: React.FC = () => {
 
   const handleSave = () => {
     const localData = getLocalData();
-    
+
     const rootCause: RootCause = {
       id: `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: newRootCause.name,
@@ -271,7 +353,7 @@ const RootCauseManager: React.FC = () => {
     }
     localData.root_causes.push(rootCause);
     saveLocalData(localData);
-    
+
     loadData();
     setShowCreateForm(false);
     setNewRootCause({
@@ -362,10 +444,151 @@ const RootCauseManager: React.FC = () => {
     return `${Math.round(value * 100)}%`;
   };
 
+  // Schedule form functions
+  const addScheduleStep = () => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: [...prev.steps, {
+        title: '',
+        description: '',
+        timing: '',
+        season: '',
+        is_critical: false,
+        products_needed: [''],
+        notes: ''
+      }]
+    }));
+  };
+
+  const removeScheduleStep = (index: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateScheduleStep = (stepIndex: number, field: string, value: any) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.map((step, i) =>
+        i === stepIndex ? { ...step, [field]: value } : step
+      )
+    }));
+  };
+
+  const addProductToStep = (stepIndex: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.map((step, i) =>
+        i === stepIndex
+          ? { ...step, products_needed: [...step.products_needed, ''] }
+          : step
+      )
+    }));
+  };
+
+  const removeStepProduct = (stepIndex: number, productIndex: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.map((step, i) =>
+        i === stepIndex
+          ? { ...step, products_needed: step.products_needed.filter((_, pi) => pi !== productIndex) }
+          : step
+      )
+    }));
+  };
+
+  const updateStepProduct = (stepIndex: number, productIndex: number, value: string) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      steps: prev.steps.map((step, i) =>
+        i === stepIndex
+          ? {
+              ...step,
+              products_needed: step.products_needed.map((product, pi) =>
+                pi === productIndex ? value : product
+              )
+            }
+          : step
+      )
+    }));
+  };
+
+  const addSuccessIndicator = () => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      success_indicators: [...prev.success_indicators, '']
+    }));
+  };
+
+  const removeSuccessIndicator = (index: number) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      success_indicators: prev.success_indicators.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateSuccessIndicator = (index: number, value: string) => {
+    setScheduleFormData(prev => ({
+      ...prev,
+      success_indicators: prev.success_indicators.map((indicator, i) =>
+        i === index ? value : indicator
+      )
+    }));
+  };
+
+  const handleScheduleSubmit = () => {
+    if (!selectedRootCauseForSchedule || !scheduleFormData.name || !scheduleFormData.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const localData = getLocalData();
+
+    const newSchedule = {
+      id: `ts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      root_cause_id: selectedRootCauseForSchedule,
+      name: scheduleFormData.name,
+      description: scheduleFormData.description,
+      total_duration: scheduleFormData.total_duration,
+      difficulty_level: scheduleFormData.difficulty_level,
+      steps: scheduleFormData.steps.filter(step => step.title && step.description),
+      success_indicators: scheduleFormData.success_indicators.filter(indicator => indicator.trim()),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (!localData.treatment_schedules) {
+      localData.treatment_schedules = [];
+    }
+    localData.treatment_schedules.push(newSchedule);
+    saveLocalData(localData);
+
+    loadData();
+    setShowScheduleModal(false);
+    setSelectedRootCauseForSchedule('');
+    setScheduleFormData({
+      name: '',
+      description: '',
+      total_duration: '',
+      difficulty_level: 'beginner',
+      steps: [{
+        title: '',
+        description: '',
+        timing: '',
+        season: '',
+        is_critical: false,
+        products_needed: [''],
+        notes: ''
+      }],
+      success_indicators: ['']
+    });
+  };
+
   // Add a debug component to show raw data
   const DebugInfo = () => {
     if (process.env.NODE_ENV !== 'development') return null;
-    
+
     return (
       <details className="mb-4 p-4 bg-gray-900 rounded-lg">
         <summary className="text-gray-300 cursor-pointer">Debug Info (Development Only)</summary>
@@ -436,7 +659,7 @@ const RootCauseManager: React.FC = () => {
               <Filter className="w-5 h-5 text-gray-400" />
               <span className="text-sm font-medium text-gray-300">Filters:</span>
             </div>
-            
+
             <select
               value={filters.category}
               onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value as any }))}
@@ -472,6 +695,16 @@ const RootCauseManager: React.FC = () => {
               <option value="none">No Cases (0)</option>
             </select>
 
+            <select
+              value={filters.showBlanks}
+              onChange={(e) => setFilters(prev => ({ ...prev, showBlanks: e.target.value as any }))}
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            >
+              <option value="all">All Items</option>
+              <option value="blanks">🗑️ Blank/Empty Only</option>
+              <option value="complete">✅ Complete Only</option>
+            </select>
+
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -500,6 +733,47 @@ const RootCauseManager: React.FC = () => {
                 </button>
               </div>
             )}
+
+        {/* Bulk Actions Toolbar */}
+        {selectedForDelete.size > 0 && (
+          <div className="mb-4 p-4 bg-blue-900/50 border border-blue-700 rounded-lg">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <span className="text-sm font-medium text-blue-300">
+                  {selectedForDelete.size} item{selectedForDelete.size > 1 ? 's' : ''} selected
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setSelectedForDelete(new Set())}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    Clear Selection
+                  </button>
+                  <span className="text-gray-500">•</span>
+                  <button
+                    onClick={() => setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)))}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    Select All Visible
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                <span className="text-xs text-gray-400">
+                  Press Delete key or use button
+                </span>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm w-full sm:w-auto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Selected</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
             <button
               onClick={clearFilters}
               className="px-3 py-2 text-gray-400 hover:text-white text-sm transition-colors"
@@ -518,24 +792,94 @@ const RootCauseManager: React.FC = () => {
       {/* Root Causes List */}
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-white mb-6">Root Causes Database</h3>
-        
-        {/* Select All Checkbox */}
-        {filteredRootCauses.length > 0 && (
-          <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+
+        {/* Select All Checkbox - Always show when there are ANY root causes, even if filtered to 0 */}
+        <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
             <label className="flex items-center space-x-3">
               <input
                 type="checkbox"
-                checked={selectedForDelete.size === filteredRootCauses.length && filteredRootCauses.length > 0}
+                checked={filteredRootCauses.length > 0 && filteredRootCauses.every(rc => selectedForDelete.has(rc.id))}
                 onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 text-green-600 border-gray-500 rounded focus:ring-green-500 bg-gray-600"
+                disabled={filteredRootCauses.length === 0}
+                className="w-4 h-4 text-green-600 bg-gray-600 border-gray-500 rounded focus:ring-green-500 focus:ring-2 disabled:opacity-50"
               />
               <span className="text-sm font-medium text-gray-300">
-                Select All ({filteredRootCauses.length} items)
+                {filteredRootCauses.length > 0 ? (
+                  <>
+                    Select All Visible ({filteredRootCauses.length} items)
+                    {filteredRootCauses.length !== rootCauses.length && (
+                      <span className="text-gray-400 block sm:inline sm:ml-1">• Filtered from {rootCauses.length} total</span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    No items match current filters
+                    {rootCauses.length > 0 && (
+                      <span className="text-gray-400 block sm:inline sm:ml-1">• {rootCauses.length} total items available</span>
+                    )}
+                  </>
+                )}
               </span>
             </label>
+
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+              {selectedForDelete.size > 0 && (
+                <>
+                  <span className="text-sm text-gray-400">
+                    {selectedForDelete.size} selected
+                  </span>
+                  <button
+                    onClick={() => setSelectedForDelete(new Set())}
+                    className="text-sm text-gray-400 hover:text-white self-start sm:self-auto"
+                  >
+                    Clear Selection
+                  </button>
+                </>
+              )}
+
+              {/* Quick Select All & Delete Button */}
+              {filteredRootCauses.length > 0 && filteredRootCauses.length !== rootCauses.length && (
+                <button
+                  onClick={() => {
+                    setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
+                    setTimeout(() => handleBulkDelete(), 100);
+                  }}
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete All Filtered</span>
+                </button>
+              )}
+
+              {/* Quick Delete Blanks Button */}
+              {filters.showBlanks === 'blanks' && filteredRootCauses.length > 0 && (
+                <button
+                  onClick={() => {
+                    setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
+                    setTimeout(() => handleBulkDelete(), 100);
+                  }}
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete All Blanks</span>
+                </button>
+              )}
+
+              {/* Show clear filters button when no results */}
+              {filteredRootCauses.length === 0 && rootCauses.length > 0 && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Clear Filters</span>
+                </button>
+              )}
+            </div>
           </div>
-        )}
-        
+        </div>
+
         {filteredRootCauses.length === 0 ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -545,7 +889,7 @@ const RootCauseManager: React.FC = () => {
               {rootCauses.length === 0 ? 'No Root Causes Found' : 'No Results Found'}
             </h4>
             <p className="text-gray-500">
-              {rootCauses.length === 0 
+              {rootCauses.length === 0
                 ? 'Run AI Analysis to generate root causes from your data, or add them manually.'
                 : 'Try adjusting your filters to see more results.'
               }
@@ -561,29 +905,37 @@ const RootCauseManager: React.FC = () => {
                     type="checkbox"
                     checked={selectedForDelete.has(rootCause.id)}
                     onChange={(e) => handleSelectForDelete(rootCause.id, e.target.checked)}
-                    className="mt-1 w-4 h-4 text-green-600 border-gray-500 rounded focus:ring-green-500 bg-gray-600"
+                    className="mt-1 w-4 h-4 text-green-600 bg-gray-600 border-gray-500 rounded focus:ring-green-500 focus:ring-2"
                   />
-                  
+
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="text-lg font-medium text-white">{rootCause.name}</h4>
+                          <h4 className="text-lg font-medium text-white">{rootCause.name || '[Blank Name]'}</h4>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(rootCause.category)}`}>
                             {rootCause.category}
                           </span>
                           <span className="px-2 py-1 bg-gray-600 text-gray-300 text-xs rounded-full">
                             {getScheduleCount(rootCause.id)} schedules
                           </span>
+                          {/* Blank indicator */}
+                          {(!rootCause.name || !rootCause.description ||
+                            !rootCause.visual_indicators?.length ||
+                            !rootCause.standard_solutions?.length) && (
+                            <span className="px-2 py-1 bg-yellow-600 text-yellow-100 text-xs rounded-full">
+                              Incomplete
+                            </span>
+                          )}
                         </div>
-                        <p className="text-gray-300 mb-2">{rootCause.description}</p>
+                        <p className="text-gray-300 mb-2">{rootCause.description || '[No Description]'}</p>
                         <div className="flex items-center space-x-4 text-sm text-gray-400">
                           <span>Confidence: {formatConfidence(rootCause.confidence_threshold)}</span>
                           <span>Cases: {rootCause.case_count || 0}</span>
                           <span>Success: {formatSuccessRate(rootCause.success_rate)}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => setShowAIDocumentation(rootCause)}
@@ -669,12 +1021,12 @@ const RootCauseManager: React.FC = () => {
                 <AlertTriangle className="w-6 h-6 text-red-400" />
                 <h3 className="text-lg font-bold text-white">Confirm Bulk Delete</h3>
               </div>
-              
+
               <p className="text-gray-300 mb-4">
-                Are you sure you want to delete {selectedForDelete.size} root cause{selectedForDelete.size > 1 ? 's' : ''}? 
+                Are you sure you want to delete {selectedForDelete.size} root cause{selectedForDelete.size > 1 ? 's' : ''}?
                 This action cannot be undone.
               </p>
-              
+
               <div className="bg-gray-700 rounded-lg p-3 mb-6 max-h-32 overflow-y-auto">
                 <h4 className="text-sm font-medium text-gray-300 mb-2">Items to be deleted:</h4>
                 <ul className="text-sm text-gray-400 space-y-1">
@@ -689,7 +1041,7 @@ const RootCauseManager: React.FC = () => {
                   }
                 </ul>
               </div>
-              
+
               <div className="flex items-center justify-end space-x-3">
                 <button
                   onClick={() => setShowBulkDeleteConfirm(false)}
@@ -756,7 +1108,7 @@ const RootCauseManager: React.FC = () => {
                     <Code className="w-5 h-5 text-blue-400" />
                     <span>AI Generated Analysis</span>
                   </h4>
-                  
+
                   <div className="space-y-4">
                     {/* Standard Root Cause */}
                     <div>
@@ -1001,14 +1353,17 @@ const RootCauseManager: React.FC = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-medium text-white">Treatment Schedules</h4>
                     <button
-                      onClick={() => alert('Treatment schedule creation coming soon! This will allow you to create step-by-step treatment plans for this root cause.')}
+                      onClick={() => {
+                        setSelectedRootCauseForSchedule(selectedRootCause.id);
+                        setShowScheduleModal(true);
+                      }}
                       className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Add Schedule</span>
                     </button>
                   </div>
-                  
+
                   {getScheduleCount(selectedRootCause.id) > 0 ? (
                     <div className="space-y-3">
                       {treatmentSchedules
@@ -1467,7 +1822,7 @@ const RootCauseManager: React.FC = () => {
                       <span>Add Step</span>
                     </button>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {scheduleFormData.steps.map((step, stepIndex) => (
                       <div key={stepIndex} className="p-4 bg-gray-700 rounded-lg">
@@ -1482,7 +1837,7 @@ const RootCauseManager: React.FC = () => {
                             </button>
                           )}
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">

@@ -34,6 +34,20 @@ const CategorySuggestionManager: React.FC = () => {
 
   useEffect(() => {
     loadSuggestions();
+    
+    // Listen for data updates from other components
+    const handleDataUpdate = () => {
+      console.log('CategorySuggestionManager: Received data update event, reloading...');
+      loadSuggestions();
+    };
+    
+    window.addEventListener('categorySuggestionsUpdated', handleDataUpdate);
+    window.addEventListener('analysisComplete', handleDataUpdate);
+    
+    return () => {
+      window.removeEventListener('categorySuggestionsUpdated', handleDataUpdate);
+      window.removeEventListener('analysisComplete', handleDataUpdate);
+    };
   }, []);
 
   const loadSuggestions = () => {
