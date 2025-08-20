@@ -106,6 +106,18 @@ const RootCauseManager: React.FC = () => {
       window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
       window.removeEventListener('analysisComplete', handleDataUpdate);
     };
+    
+    // Listen for new root causes from other components
+    const handleRootCausesUpdate = (event: any) => {
+      console.log('RootCauseManager: Received root causes update event', event.detail);
+      loadRootCauses();
+    };
+    
+    window.addEventListener('rootCausesUpdated', handleRootCausesUpdate);
+    
+    return () => {
+      window.removeEventListener('rootCausesUpdated', handleRootCausesUpdate);
+    };
   }, []);
 
   useEffect(() => {

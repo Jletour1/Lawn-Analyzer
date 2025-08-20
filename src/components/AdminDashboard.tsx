@@ -938,16 +938,6 @@ const UnifiedAdminDashboard: React.FC = () => {
     setSelectedSubmission(null);
   };
 
-  // Helper function to categorize root causes
-  const categorizeRootCause = (rootCause: string): 'disease' | 'pest' | 'environmental' | 'maintenance' | 'weed' => {
-    const lowerCause = rootCause.toLowerCase();
-    if (lowerCause.includes('disease') || lowerCause.includes('fungal') || lowerCause.includes('blight') || lowerCause.includes('rot')) return 'disease';
-    if (lowerCause.includes('pest') || lowerCause.includes('insect') || lowerCause.includes('bug') || lowerCause.includes('grub')) return 'pest';
-    if (lowerCause.includes('weed') || lowerCause.includes('invasive') || lowerCause.includes('unwanted')) return 'weed';
-    if (lowerCause.includes('mowing') || lowerCause.includes('maintenance') || lowerCause.includes('equipment') || lowerCause.includes('fertilizer')) return 'maintenance';
-    return 'environmental';
-  };
-
   /* ---------------------- Products / affiliate persistence ---------------------- */
   const updateAffiliateLink = (analysisId: string, productId: string, link: string) => {
     if (activeTab === 'reddit') {
