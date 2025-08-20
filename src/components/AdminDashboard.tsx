@@ -1765,7 +1765,8 @@ const UnifiedAdminDashboard: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => handleEdit(selectedSubmission.analysis)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={!submission.analysis_result}
                   >
                     <Edit className="w-4 h-4" />
                     <span>Edit Analysis</span>
