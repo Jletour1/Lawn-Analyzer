@@ -20,8 +20,11 @@ import {
   Clock,
   Plus,
   Filter
-  onTabChange: (tab: string) => void;
 } from 'lucide-react';
+
+interface AdminDashboardProps {
+  onTabChange: (tab: string) => void;
+}
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onTabChange }) => {
   const [submissions, setSubmissions] = useState<LocalUserSubmission[]>([]);
