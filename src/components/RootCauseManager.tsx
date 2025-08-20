@@ -68,8 +68,8 @@ const RootCauseManager: React.FC = () => {
 
   const loadData = () => {
     const localData = getLocalData();
-    setRootCauses(localData.root_causes || []);
-    setTreatmentSchedules(localData.treatment_schedules || []);
+    const rootCausesData = (localData.root_causes || []).filter(item => item != null && item.id);
+    const treatmentSchedulesData = (localData.treatment_schedules || []).filter(item => item != null && item.id);
   };
 
   const applyFilters = () => {
