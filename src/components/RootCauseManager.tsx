@@ -9,7 +9,9 @@ import {
   Eye,
   Save,
   X,
+  XCircle,
   Calendar,
+  Clock
   Target,
   CheckCircle,
   AlertTriangle,
@@ -24,6 +26,7 @@ import {
 
 const RootCauseManager: React.FC = () => {
   const [rootCauses, setRootCauses] = useState<RootCause[]>([]);
+  const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [filteredRootCauses, setFilteredRootCauses] = useState<RootCause[]>([]);
   const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
