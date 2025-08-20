@@ -170,7 +170,7 @@ const AdminApp: React.FC = () => {
     switch (activeTab) {
       case 'dashboard':
           console.log('AdminApp: Rendering AdminDashboard');
-        return <AdminDashboard />;
+        return <AdminDashboard onTabChange={setActiveTab} />;
       case 'collection':
           console.log('AdminApp: Rendering DataCollection');
         return <DataCollection />;

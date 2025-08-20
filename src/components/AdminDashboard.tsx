@@ -20,9 +20,10 @@ import {
   Clock,
   Plus,
   Filter
+  onTabChange: (tab: string) => void;
 } from 'lucide-react';
 
-const AdminDashboard: React.FC = () => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onTabChange }) => {
   const [submissions, setSubmissions] = useState<LocalUserSubmission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<LocalUserSubmission | null>(null);
   const [editingSubmission, setEditingSubmission] = useState<LocalUserSubmission | null>(null);
@@ -402,7 +403,10 @@ const AdminDashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Reddit Data Collection</h3>
           <div className="flex items-center space-x-3">
-            <button className="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
+            <button 
+              onClick={() => onTabChange('collection')}
+              className="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+            >
               <Database className="w-4 h-4" />
               <span>View Collection</span>
             </button>
@@ -463,7 +467,10 @@ const AdminDashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Email Collection & Outreach</h3>
           <div className="flex items-center space-x-3">
-            <button className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            <button 
+              onClick={() => alert('Email management feature coming soon! This will show:\n\n• Email subscriber list\n• Segmentation by engagement\n• Follow-up campaign management\n• Expert review notifications\n• Automated email sequences')}
+              className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            >
               <Users className="w-4 h-4" />
               <span>Manage Emails</span>
             </button>
