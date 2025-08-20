@@ -11,11 +11,12 @@ import {
   X,
   XCircle,
   Calendar,
-  Clock,
+  Clock
   Target,
   CheckCircle,
   AlertTriangle,
   Package,
+  Clock,
   Brain,
   FileText,
   Code,
@@ -25,6 +26,7 @@ import {
 
 const RootCauseManager: React.FC = () => {
   const [rootCauses, setRootCauses] = useState<RootCause[]>([]);
+  const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [treatmentSchedules, setTreatmentSchedules] = useState<TreatmentSchedule[]>([]);
   const [filteredRootCauses, setFilteredRootCauses] = useState<RootCause[]>([]);
   const [selectedRootCause, setSelectedRootCause] = useState<RootCause | null>(null);
@@ -559,6 +561,60 @@ const RootCauseManager: React.FC = () => {
                   </div>
                 )}
 
+
+              {/* Treatment Schedules Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-medium text-gray-900">Treatment Schedules</h4>
+                  <button
+                    onClick={() => alert('Treatment schedule creation coming soon! This will allow you to create step-by-step treatment plans for this root cause.')}
+                    className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Schedule</span>
+                  </button>
+                </div>
+                
+                {getScheduleCount(selectedRootCause.id) > 0 ? (
+                  <div className="space-y-3">
+                    {treatmentSchedules
+                      .filter(schedule => schedule.root_cause_id === selectedRootCause.id)
+                      .map((schedule) => (
+                        <div key={schedule.id} className="p-4 bg-purple-50 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="font-medium text-purple-900">{schedule.name}</h5>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                schedule.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
+                                schedule.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {schedule.difficulty_level}
+                              </span>
+                              <span className="text-xs text-purple-600">
+                                {schedule.steps.length} steps
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-purple-700 mb-2">{schedule.description}</p>
+                          <div className="flex items-center space-x-4 text-xs text-purple-600">
+                            <span className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>Duration: {schedule.total_duration}</span>
+                            </span>
+                            <span>Success indicators: {schedule.success_indicators.length}</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-lg">
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 mb-2">No treatment schedules yet</p>
+                    <p className="text-sm text-gray-500">Create step-by-step treatment plans for this root cause</p>
+                  </div>
+                )}
+              </div>
                 {/* Products */}
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
