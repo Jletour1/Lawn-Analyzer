@@ -916,10 +916,6 @@ const UnifiedAdminDashboard: React.FC = () => {
     const data = getLocalData();
     const submissionIndex = data.submissions.findIndex((s: any) => s.id === editingSubmission.id);
     
-    // Check if this is a new root cause that should be added to root causes
-    const isNewRootCause = editForm.rootCause.trim() && 
-      editForm.rootCause !== (selectedSubmission.analysis_result?.rootCause || '');
-    
     if (submissionIndex !== -1) {
       data.submissions[submissionIndex].analysis_result = {
         ...data.submissions[submissionIndex].analysis_result,
@@ -933,46 +929,6 @@ const UnifiedAdminDashboard: React.FC = () => {
         timeline: editForm.timeline
       };
       
-      // If this is a new root cause, add it to root causes
-      if (isNewRootCause && editForm.rootCause.trim()) {
-        if (!localData.root_causes) {
-          localData.root_causes = [];
-        }
-        
-        // Check if root cause already exists
-        const existingRootCause = localData.root_causes.find(rc => 
-          rc.name.toLowerCase() === editForm.rootCause.toLowerCase()
-        );
-        
-        if (!existingRootCause) {
-          const newRootCause = {
-            id: `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: editForm.rootCause,
-            category: categorizeRootCause(editForm.rootCause),
-            description: `Root cause identified from user submission analysis: ${editForm.rootCause}`,
-            visual_indicators: ['User-reported symptoms'],
-            standard_root_cause: editForm.rootCause,
-            standard_solutions: editForm.solutions,
-            standard_recommendations: editForm.solutions.map(s => `Consider: ${s}`),
-            products: [],
-            confidence_threshold: editForm.confidence,
-            success_rate: editForm.confidence,
-            case_count: 1,
-            seasonal_factors: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          localData.root_causes.push(newRootCause);
-          console.log('Added new root cause from user submission:', newRootCause.name);
-          
-          // Dispatch event to notify root cause manager
-          window.dispatchEvent(new CustomEvent('rootCausesUpdated', {
-            detail: { newRootCause: newRootCause.name, source: 'user_submission' }
-          }));
-        }
-      }
-      
       saveLocalData(data);
       loadLocalData();
     }
@@ -980,6 +936,16 @@ const UnifiedAdminDashboard: React.FC = () => {
     setShowEditModal(false);
     setEditingSubmission(null);
     setSelectedSubmission(null);
+  };
+
+  // Helper function to categorize root causes
+  const categorizeRootCause = (rootCause: string): 'disease' | 'pest' | 'environmental' | 'maintenance' | 'weed' => {
+    const lowerCause = rootCause.toLowerCase();
+    if (lowerCause.includes('disease') || lowerCause.includes('fungal') || lowerCause.includes('blight') || lowerCause.includes('rot')) return 'disease';
+    if (lowerCause.includes('pest') || lowerCause.includes('insect') || lowerCause.includes('bug') || lowerCause.includes('grub')) return 'pest';
+    if (lowerCause.includes('weed') || lowerCause.includes('invasive') || lowerCause.includes('unwanted')) return 'weed';
+    if (lowerCause.includes('mowing') || lowerCause.includes('maintenance') || lowerCause.includes('equipment') || lowerCause.includes('fertilizer')) return 'maintenance';
+    return 'environmental';
   };
 
   /* ---------------------- Products / affiliate persistence ---------------------- */
