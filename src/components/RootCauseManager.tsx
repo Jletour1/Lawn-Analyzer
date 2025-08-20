@@ -27,6 +27,15 @@ const RootCauseManager: React.FC = () => {
   const [editingRootCause, setEditingRootCause] = useState<RootCause | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAIDocumentation, setShowAIDocumentation] = useState<RootCause | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    category: 'environmental' as const,
+    description: '',
+    visual_indicators: [''],
+    standard_solutions: [''],
+    confidence_threshold: 0.7,
+    success_rate: 0.8
+  });
 
   const [newRootCause, setNewRootCause] = useState({
     name: '',
@@ -45,6 +54,59 @@ const RootCauseManager: React.FC = () => {
     const localData = getLocalData();
     setRootCauses(localData.root_causes || []);
     setTreatmentSchedules(localData.treatment_schedules || []);
+  };
+
+  const handleEdit = (rootCause: RootCause) => {
+    setEditingRootCause(rootCause);
+    setEditForm({
+      name: rootCause.name,
+      category: rootCause.category,
+      description: rootCause.description,
+      visual_indicators: rootCause.visual_indicators.length > 0 ? rootCause.visual_indicators : [''],
+      standard_solutions: rootCause.standard_solutions.length > 0 ? rootCause.standard_solutions : [''],
+      confidence_threshold: rootCause.confidence_threshold || 0.7,
+      success_rate: rootCause.success_rate || 0.8
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingRootCause) return;
+
+    const localData = getLocalData();
+    const rootCauseIndex = localData.root_causes?.findIndex(rc => rc.id === editingRootCause.id);
+    
+    if (rootCauseIndex !== undefined && rootCauseIndex >= 0 && localData.root_causes) {
+      localData.root_causes[rootCauseIndex] = {
+        ...editingRootCause,
+        name: editForm.name,
+        category: editForm.category,
+        description: editForm.description,
+        visual_indicators: editForm.visual_indicators.filter(vi => vi.trim()),
+        standard_root_cause: editForm.description,
+        standard_solutions: editForm.standard_solutions.filter(s => s.trim()),
+        standard_recommendations: editForm.standard_solutions.filter(s => s.trim()).map(s => `Consider: ${s}`),
+        confidence_threshold: editForm.confidence_threshold,
+        success_rate: editForm.success_rate,
+        updated_at: new Date().toISOString()
+      };
+
+      saveLocalData(localData);
+      loadData();
+      setEditingRootCause(null);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRootCause(null);
+    setEditForm({
+      name: '',
+      category: 'environmental',
+      description: '',
+      visual_indicators: [''],
+      standard_solutions: [''],
+      confidence_threshold: 0.7,
+      success_rate: 0.8
+    });
   };
 
   const handleSave = () => {
@@ -113,6 +175,27 @@ const RootCauseManager: React.FC = () => {
 
   const removeArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number) => {
     setNewRootCause(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }));
+  };
+
+  const addEditArrayField = (field: 'visual_indicators' | 'standard_solutions') => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: [...prev[field], '']
+    }));
+  };
+
+  const updateEditArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: prev[field].map((item, i) => i === index ? value : item)
+    }));
+  };
+
+  const removeEditArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number) => {
+    setEditForm(prev => ({
       ...prev,
       [field]: prev[field].filter((_, i) => i !== index)
     }));
@@ -697,6 +780,184 @@ const RootCauseManager: React.FC = () => {
                 >
                   <Save className="w-4 h-4" />
                   <span>Create Root Cause</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Root Cause Modal */}
+      {editingRootCause && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Edit Root Cause</h3>
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="e.g., Brown Patch Disease"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Category *
+                    </label>
+                    <select
+                      value={editForm.category}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value as any }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="disease">Disease</option>
+                      <option value="pest">Pest</option>
+                      <option value="weed">Weed</option>
+                      <option value="environmental">Environmental</option>
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Describe the root cause and its characteristics..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Confidence Threshold
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={editForm.confidence_threshold}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, confidence_threshold: parseFloat(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Success Rate
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={editForm.success_rate}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, success_rate: parseFloat(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Visual Indicators
+                    </label>
+                    <button
+                      onClick={() => addEditArrayField('visual_indicators')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Indicator
+                    </button>
+                  </div>
+                  {editForm.visual_indicators.map((indicator, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={indicator}
+                        onChange={(e) => updateEditArrayField('visual_indicators', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Circular brown patches with dark edges"
+                      />
+                      {editForm.visual_indicators.length > 1 && (
+                        <button
+                          onClick={() => removeEditArrayField('visual_indicators', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Standard Solutions
+                    </label>
+                    <button
+                      onClick={() => addEditArrayField('standard_solutions')}
+                      className="text-green-400 hover:text-green-300 text-sm"
+                    >
+                      + Add Solution
+                    </button>
+                  </div>
+                  {editForm.standard_solutions.map((solution, index) => (
+                    <div key={index} className="flex items-center space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={solution}
+                        onChange={(e) => updateEditArrayField('standard_solutions', index, e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Apply fungicide containing propiconazole"
+                      />
+                      {editForm.standard_solutions.length > 1 && (
+                        <button
+                          onClick={() => removeEditArrayField('standard_solutions', index)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700 mt-6">
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Changes</span>
                 </button>
               </div>
             </div>
