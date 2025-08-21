@@ -39,6 +39,20 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Lawn Analyzer API Server',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth/*',
+      api: '/api/*'
+    }
+  });
+});
+
 // Temporary basic auth endpoint for testing
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
