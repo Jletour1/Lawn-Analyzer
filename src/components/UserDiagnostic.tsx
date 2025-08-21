@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { Camera, Upload, Send, Loader, CheckCircle, AlertTriangle, Leaf, Brain, Target, Clock } from 'lucide-react';
 import { addUserSubmission, LocalUserSubmission } from '../utils/localStorage';
-import { performRealAnalysis } from '../utils/realAnalysis';
 import { performMockAnalysis } from '../utils/mockAnalysis';
-import { config } from '../utils/config';
-import { getCategoryNames } from '../utils/categoryManager';
 
 const UserDiagnostic: React.FC = () => {
   const [step, setStep] = useState<'upload' | 'details' | 'analyzing' | 'results'>('upload');
@@ -25,18 +22,6 @@ const UserDiagnostic: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string>('');
-  const [availableGrassTypes, setAvailableGrassTypes] = useState<string[]>([]);
-
-  // Load available categories for better grass type suggestions
-  React.useEffect(() => {
-    const categoryNames = getCategoryNames();
-    // Extract grass types from category names that might contain grass type info
-    const grassTypes = [
-      'bermuda', 'zoysia', 'st-augustine', 'kentucky-bluegrass', 
-      'tall-fescue', 'perennial-ryegrass', 'unknown'
-    ];
-    setAvailableGrassTypes(grassTypes);
-  }, []);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -83,14 +68,8 @@ const UserDiagnostic: React.FC = () => {
       };
 
       // Perform analysis (real or mock based on API availability)
-      let result;
-      if (config.openai.apiKey) {
-        console.log('Using real OpenAI analysis');
-        result = await performRealAnalysis(submission);
-      } else {
-        console.log('Using mock analysis (no API key)');
-        result = await performMockAnalysis(submission);
-      }
+      console.log('Using mock analysis for preview');
+      const result = await performMockAnalysis(submission);
 
       // Add analysis result to submission
       submission.analysis_result = result;
