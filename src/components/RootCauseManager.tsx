@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getLocalData, saveLocalData } from '../utils/localStorage';
-import { getCategoryNames, getCategoryStats } from '../utils/categoryManager';
+import { getCategoryNames } from '../utils/categoryManager';
 import { RootCause, TreatmentSchedule } from '../types';
 import {
   Database,
@@ -10,18 +10,13 @@ import {
   Eye,
   Save,
   X,
-  XCircle,
   Calendar,
   Clock,
-  Target,
-  CheckCircle,
-  AlertTriangle,
-  Package,
-  Brain,
-  FileText,
-  Code,
   Filter,
-  Search
+  Search,
+  Brain,
+  Code,
+  AlertTriangle
 } from 'lucide-react';
 
 const RootCauseManager: React.FC = () => {
@@ -78,79 +73,18 @@ const RootCauseManager: React.FC = () => {
     description: '',
     visual_indicators: [''],
     standard_solutions: [''],
-    products: []
+    products: [] as any[]
   });
 
+  // schedule editing state
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
-  const [showEditScheduleForm, setShowEditScheduleForm] = useState(false);
 
-  const handleEditSchedule = (schedule: any) => {
-    setEditingSchedule(schedule);
-    setScheduleFormData({
-      name: schedule.name,
-      description: schedule.description,
-      total_duration: schedule.total_duration,
-      difficulty_level: schedule.difficulty_level,
-      steps: schedule.steps,
-      success_indicators: schedule.success_indicators
-    });
-    setShowEditScheduleForm(true);
-    setSelectedRootCause(null);
-  };
-
-  useEffect(() => {
-    loadData();
-    loadAvailableCategories();
-    
-    // Listen for data updates from other components
-    const handleDataUpdate = () => {
-      console.log('RootCauseManager: Received data update event, reloading...');
-      loadData();
-      loadAvailableCategories();
-    };
-    
-    const handleCategoriesUpdate = () => {
-      console.log('RootCauseManager: Categories updated, reloading...');
-      loadAvailableCategories();
-    };
-    
-    window.addEventListener('rootCausesUpdated', handleDataUpdate);
-    window.addEventListener('categoriesUpdated', handleCategoriesUpdate);
-    window.addEventListener('analysisComplete', handleDataUpdate);
-    
-    return () => {
-      window.removeEventListener('rootCausesUpdated', handleDataUpdate);
-      window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
-      window.removeEventListener('analysisComplete', handleDataUpdate);
-    };
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    loadAvailableCategories();
-    
-    // Listen for new root causes from other components
-    const handleRootCausesUpdate = (event: any) => {
-      console.log('RootCauseManager: Received root causes update event', event.detail);
-      loadRootCauses();
-    };
-    
-    window.addEventListener('rootCausesUpdated', handleRootCausesUpdate);
-    
-    return () => {
-      window.removeEventListener('rootCausesUpdated', handleRootCausesUpdate);
-    };
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [rootCauses, filters]);
-
+  // ---------- Data loaders ----------
   const loadRootCauses = () => {
     const localData = getLocalData();
     const rootCausesData = (localData.root_causes || [])
-      .filter(item => item != null && (item.id || item.name))
-      .map(item => ({
+      .filter((item: any) => item != null && (item.id || item.name))
+      .map((item: any) => ({
         ...item,
         id: item.id || `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         visual_indicators: item.visual_indicators || [],
@@ -171,12 +105,10 @@ const RootCauseManager: React.FC = () => {
   const loadData = () => {
     const localData = getLocalData();
 
-    // Load root causes with more robust filtering
     const rootCausesData = (localData.root_causes || [])
-      .filter(item => item != null && (item.id || item.name)) // Allow items with at least an id or name
-      .map(item => ({
+      .filter((item: any) => item != null && (item.id || item.name))
+      .map((item: any) => ({
         ...item,
-        // Ensure required fields have defaults
         id: item.id || `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         visual_indicators: item.visual_indicators || [],
         standard_solutions: item.standard_solutions || [],
@@ -190,12 +122,8 @@ const RootCauseManager: React.FC = () => {
         updated_at: item.updated_at || new Date().toISOString()
       }));
 
-    // Load treatment schedules
     const treatmentSchedulesData = (localData.treatment_schedules || [])
-      .filter(item => item != null && item.id);
-
-    console.log('Loaded root causes:', rootCausesData); // Debug log
-    console.log('Loaded treatment schedules:', treatmentSchedulesData); // Debug log
+      .filter((item: any) => item != null && item.id);
 
     setRootCauses(rootCausesData);
     setTreatmentSchedules(treatmentSchedulesData);
@@ -206,15 +134,41 @@ const RootCauseManager: React.FC = () => {
     setAvailableCategories(categoryNames);
   };
 
+  useEffect(() => {
+    loadData();
+    loadAvailableCategories();
+
+    const handleDataUpdate = () => {
+      loadData();
+      loadAvailableCategories();
+    };
+    const handleCategoriesUpdate = () => loadAvailableCategories();
+    const handleRootCausesUpdate = () => loadRootCauses();
+
+    window.addEventListener('rootCausesUpdated', handleDataUpdate);
+    window.addEventListener('categoriesUpdated', handleCategoriesUpdate);
+    window.addEventListener('analysisComplete', handleDataUpdate);
+    window.addEventListener('rootCausesUpdated', handleRootCausesUpdate);
+
+    return () => {
+      window.removeEventListener('rootCausesUpdated', handleDataUpdate);
+      window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
+      window.removeEventListener('analysisComplete', handleDataUpdate);
+      window.removeEventListener('rootCausesUpdated', handleRootCausesUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [rootCauses, filters]);
+
   const applyFilters = () => {
     let filtered = [...rootCauses];
 
-    // Category filter
     if (filters.category !== 'all') {
       filtered = filtered.filter(rc => rc.category === filters.category);
     }
 
-    // Confidence filter
     if (filters.confidenceRange !== 'all') {
       filtered = filtered.filter(rc => {
         const confidence = rc.confidence_threshold || 0;
@@ -227,7 +181,6 @@ const RootCauseManager: React.FC = () => {
       });
     }
 
-    // Case count filter
     if (filters.caseCount !== 'all') {
       filtered = filtered.filter(rc => {
         const cases = rc.case_count || 0;
@@ -240,16 +193,13 @@ const RootCauseManager: React.FC = () => {
       });
     }
 
-    // Search term filter - add safety checks
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
       filtered = filtered.filter(rc => {
-        // Safety checks to prevent crashes
         const name = rc.name || '';
         const description = rc.description || '';
         const visualIndicators = rc.visual_indicators || [];
         const standardSolutions = rc.standard_solutions || [];
-
         return name.toLowerCase().includes(searchLower) ||
                description.toLowerCase().includes(searchLower) ||
                visualIndicators.some(vi => vi && vi.toLowerCase().includes(searchLower)) ||
@@ -257,16 +207,12 @@ const RootCauseManager: React.FC = () => {
       });
     }
 
-    console.log('Filtered root causes:', filtered); // Debug log
-
-    // Blank/incomplete filter
     if (filters.showBlanks !== 'all') {
       filtered = filtered.filter(rc => {
         const isBlank = !rc.name || rc.name.trim() === '' ||
                        !rc.description || rc.description.trim() === '' ||
                        (!rc.visual_indicators || rc.visual_indicators.length === 0 || rc.visual_indicators.every(vi => !vi || vi.trim() === '')) ||
                        (!rc.standard_solutions || rc.standard_solutions.length === 0 || rc.standard_solutions.every(sol => !sol || sol.trim() === ''));
-
         return filters.showBlanks === 'blanks' ? isBlank : !isBlank;
       });
     }
@@ -276,40 +222,26 @@ const RootCauseManager: React.FC = () => {
 
   const handleSelectForDelete = (id: string, selected: boolean) => {
     const newSelected = new Set(selectedForDelete);
-    if (selected) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
+    if (selected) newSelected.add(id);
+    else newSelected.delete(id);
     setSelectedForDelete(newSelected);
   };
 
   const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      // Simply select all currently visible/filtered items
-      setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
-    } else {
-      // Clear all selections
-      setSelectedForDelete(new Set());
-    }
+    if (selected) setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
+    else setSelectedForDelete(new Set());
   };
 
-  // Add keyboard shortcuts for bulk operations
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ctrl+A or Cmd+A to select all visible
       if ((event.ctrlKey || event.metaKey) && event.key === 'a' && !event.shiftKey) {
         event.preventDefault();
         setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
       }
-
-      // Delete key to delete selected
       if (event.key === 'Delete' && selectedForDelete.size > 0) {
         event.preventDefault();
         handleBulkDelete();
       }
-
-      // Escape to clear selection
       if (event.key === 'Escape') {
         setSelectedForDelete(new Set());
       }
@@ -327,7 +259,7 @@ const RootCauseManager: React.FC = () => {
   const confirmBulkDelete = () => {
     const localData = getLocalData();
     if (localData.root_causes) {
-      localData.root_causes = localData.root_causes.filter(rc => !selectedForDelete.has(rc.id));
+      localData.root_causes = localData.root_causes.filter((rc: any) => !selectedForDelete.has(rc.id));
       saveLocalData(localData);
       loadData();
       setSelectedForDelete(new Set());
@@ -346,6 +278,7 @@ const RootCauseManager: React.FC = () => {
     setSelectedForDelete(new Set());
   };
 
+  // ---------- Root Cause edit/save ----------
   const handleEdit = (rootCause: RootCause) => {
     setEditingRootCause(rootCause);
     setEditForm({
@@ -363,10 +296,10 @@ const RootCauseManager: React.FC = () => {
     if (!editingRootCause) return;
 
     const localData = getLocalData();
-    const rootCauseIndex = localData.root_causes?.findIndex(rc => rc.id === editingRootCause.id);
+    const idx = localData.root_causes?.findIndex((rc: any) => rc.id === editingRootCause.id);
 
-    if (rootCauseIndex !== undefined && rootCauseIndex >= 0 && localData.root_causes) {
-      localData.root_causes[rootCauseIndex] = {
+    if (idx !== undefined && idx >= 0 && localData.root_causes) {
+      localData.root_causes[idx] = {
         ...editingRootCause,
         name: editForm.name,
         category: editForm.category,
@@ -401,7 +334,6 @@ const RootCauseManager: React.FC = () => {
 
   const handleSave = () => {
     const localData = getLocalData();
-
     const rootCause: RootCause = {
       id: `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: newRootCause.name,
@@ -420,9 +352,7 @@ const RootCauseManager: React.FC = () => {
       updated_at: new Date().toISOString()
     };
 
-    if (!localData.root_causes) {
-      localData.root_causes = [];
-    }
+    if (!localData.root_causes) localData.root_causes = [];
     localData.root_causes.push(rootCause);
     saveLocalData(localData);
 
@@ -442,81 +372,79 @@ const RootCauseManager: React.FC = () => {
     if (confirm('Are you sure you want to delete this root cause?')) {
       const localData = getLocalData();
       if (localData.root_causes) {
-        localData.root_causes = localData.root_causes.filter(rc => rc.id !== id);
+        localData.root_causes = localData.root_causes.filter((rc: any) => rc.id !== id);
+
+        // also remove its schedules
+        if (localData.treatment_schedules) {
+          localData.treatment_schedules = localData.treatment_schedules.filter((s: any) => s.root_cause_id !== id);
+        }
+
         saveLocalData(localData);
         loadData();
       }
     }
   };
 
-  const addArrayField = (field: 'visual_indicators' | 'standard_solutions') => {
-    setNewRootCause(prev => ({
-      ...prev,
-      [field]: [...prev[field], '']
-    }));
+  // ---------- Schedule helpers ----------
+  const openAddSchedule = (rootCauseId: string) => {
+    setEditingSchedule(null);
+    setSelectedRootCauseForSchedule(rootCauseId);
+    setScheduleFormData({
+      name: '',
+      description: '',
+      total_duration: '',
+      difficulty_level: 'beginner',
+      steps: [{
+        title: '',
+        description: '',
+        timing: '',
+        season: '',
+        is_critical: false,
+        products_needed: [''],
+        notes: ''
+      }],
+      success_indicators: ['']
+    });
+    setShowScheduleModal(true);
   };
 
-  const updateArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number, value: string) => {
-    setNewRootCause(prev => ({
-      ...prev,
-      [field]: prev[field].map((item, i) => i === index ? value : item)
-    }));
+  const handleEditSchedule = (schedule: any) => {
+    setEditingSchedule(schedule);
+    setScheduleFormData({
+      name: schedule.name || '',
+      description: schedule.description || '',
+      total_duration: schedule.total_duration || '',
+      difficulty_level: schedule.difficulty_level || 'beginner',
+      steps: schedule.steps || [{
+        title: '',
+        description: '',
+        timing: '',
+        season: '',
+        is_critical: false,
+        products_needed: [''],
+        notes: ''
+      }],
+      success_indicators: schedule.success_indicators || ['']
+    });
+    setSelectedRootCause(null);
+    setSelectedRootCauseForSchedule(schedule.root_cause_id);
+    setShowScheduleModal(true);
   };
 
-  const removeArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number) => {
-    setNewRootCause(prev => ({
-      ...prev,
-      [field]: prev[field].filter((_, i) => i !== index)
-    }));
-  };
+  const handleDeleteSchedule = (scheduleId: string) => {
+    if (!scheduleId) return;
+    if (!confirm('Delete this treatment schedule? This cannot be undone.')) return;
 
-  const addEditArrayField = (field: 'visual_indicators' | 'standard_solutions') => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: [...prev[field], '']
-    }));
-  };
-
-  const updateEditArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number, value: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: prev[field].map((item, i) => i === index ? value : item)
-    }));
-  };
-
-  const removeEditArrayField = (field: 'visual_indicators' | 'standard_solutions', index: number) => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: prev[field].filter((_, i) => i !== index)
-    }));
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'disease': return 'bg-red-100 text-red-800';
-      case 'pest': return 'bg-orange-100 text-orange-800';
-      case 'weed': return 'bg-yellow-100 text-yellow-800';
-      case 'environmental': return 'bg-blue-100 text-blue-800';
-      case 'maintenance': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+    const localData = getLocalData();
+    if (!localData.treatment_schedules) {
+      loadData();
+      return;
     }
+    localData.treatment_schedules = localData.treatment_schedules.filter((s: any) => s.id !== scheduleId);
+    saveLocalData(localData);
+    loadData();
   };
 
-  const getScheduleCount = (rootCauseId: string) => {
-    return treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId).length;
-  };
-
-  const formatConfidence = (value: number | undefined): string => {
-    if (value === undefined || isNaN(value)) return '0%';
-    return `${Math.round(value * 100)}%`;
-  };
-
-  const formatSuccessRate = (value: number | undefined): string => {
-    if (value === undefined || isNaN(value)) return '0%';
-    return `${Math.round(value * 100)}%`;
-  };
-
-  // Schedule form functions
   const addScheduleStep = () => {
     setScheduleFormData(prev => ({
       ...prev,
@@ -616,29 +544,51 @@ const RootCauseManager: React.FC = () => {
     }
 
     const localData = getLocalData();
+    if (!localData.treatment_schedules) localData.treatment_schedules = [];
 
-    const newSchedule = {
-      id: `ts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      root_cause_id: selectedRootCauseForSchedule,
-      name: scheduleFormData.name,
-      description: scheduleFormData.description,
-      total_duration: scheduleFormData.total_duration,
-      difficulty_level: scheduleFormData.difficulty_level,
-      steps: scheduleFormData.steps.filter(step => step.title && step.description),
-      success_indicators: scheduleFormData.success_indicators.filter(indicator => indicator.trim()),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    const cleanedSteps = (scheduleFormData.steps || []).filter(s => s.title && s.description);
+    const cleanedIndicators = (scheduleFormData.success_indicators || []).filter(i => i && i.trim());
 
-    if (!localData.treatment_schedules) {
-      localData.treatment_schedules = [];
+    if (editingSchedule) {
+      // update existing
+      const idx = localData.treatment_schedules.findIndex((s: any) => s.id === editingSchedule.id);
+      if (idx >= 0) {
+        localData.treatment_schedules[idx] = {
+          ...localData.treatment_schedules[idx],
+          root_cause_id: selectedRootCauseForSchedule,
+          name: scheduleFormData.name,
+          description: scheduleFormData.description,
+          total_duration: scheduleFormData.total_duration,
+          difficulty_level: scheduleFormData.difficulty_level,
+          steps: cleanedSteps,
+          success_indicators: cleanedIndicators,
+          updated_at: new Date().toISOString()
+        };
+      }
+    } else {
+      // create new
+      const newSchedule = {
+        id: `ts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        root_cause_id: selectedRootCauseForSchedule,
+        name: scheduleFormData.name,
+        description: scheduleFormData.description,
+        total_duration: scheduleFormData.total_duration,
+        difficulty_level: scheduleFormData.difficulty_level,
+        steps: cleanedSteps,
+        success_indicators: cleanedIndicators,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      localData.treatment_schedules.push(newSchedule);
     }
-    localData.treatment_schedules.push(newSchedule);
-    saveLocalData(localData);
 
+    saveLocalData(localData);
     loadData();
+
+    // reset & close
     setShowScheduleModal(false);
     setSelectedRootCauseForSchedule('');
+    setEditingSchedule(null);
     setScheduleFormData({
       name: '',
       description: '',
@@ -657,10 +607,30 @@ const RootCauseManager: React.FC = () => {
     });
   };
 
-  // Add a debug component to show raw data
+  // ---------- utils ----------
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'disease': return 'bg-red-100 text-red-800';
+      case 'pest': return 'bg-orange-100 text-orange-800';
+      case 'weed': return 'bg-yellow-100 text-yellow-800';
+      case 'environmental': return 'bg-blue-100 text-blue-800';
+      case 'maintenance': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getScheduleCount = (rootCauseId: string) =>
+    treatmentSchedules.filter(schedule => schedule.root_cause_id === rootCauseId).length;
+
+  const formatConfidence = (value: number | undefined): string =>
+    value === undefined || isNaN(value) ? '0%' : `${Math.round(value * 100)}%`;
+
+  const formatSuccessRate = (value: number | undefined): string =>
+    value === undefined || isNaN(value) ? '0%' : `${Math.round(value * 100)}%`;
+
+  // ---------- Debug ----------
   const DebugInfo = () => {
     if (process.env.NODE_ENV !== 'development') return null;
-
     return (
       <details className="mb-4 p-4 bg-gray-900 rounded-lg">
         <summary className="text-gray-300 cursor-pointer">Debug Info (Development Only)</summary>
@@ -806,46 +776,6 @@ const RootCauseManager: React.FC = () => {
               </div>
             )}
 
-            {/* Bulk Actions Toolbar */}
-            {selectedForDelete.size > 0 && (
-              <div className="mb-4 p-4 bg-blue-900/50 border border-blue-700 rounded-lg">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <span className="text-sm font-medium text-blue-300">
-                      {selectedForDelete.size} item{selectedForDelete.size > 1 ? 's' : ''} selected
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        onClick={() => setSelectedForDelete(new Set())}
-                        className="text-sm text-blue-400 hover:text-blue-300"
-                      >
-                        Clear Selection
-                      </button>
-                      <span className="text-gray-500">•</span>
-                      <button
-                        onClick={() => setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)))}
-                        className="text-sm text-blue-400 hover:text-blue-300"
-                      >
-                        Select All Visible
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                    <span className="text-xs text-gray-400">
-                      Press Delete key or use button
-                    </span>
-                    <button
-                      onClick={handleBulkDelete}
-                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm w-full sm:w-auto"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete Selected</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
             <button
               onClick={clearFilters}
               className="px-3 py-2 text-gray-400 hover:text-white text-sm transition-colors"
@@ -865,7 +795,7 @@ const RootCauseManager: React.FC = () => {
       <div className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-white mb-6">Root Causes Database</h3>
 
-        {/* Select All Checkbox - Always show when there are ANY root causes, even if filtered to 0 */}
+        {/* Select All */}
         <div className="mb-4 p-3 bg-gray-700 rounded-lg">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
             <label className="flex items-center space-x-3">
@@ -908,45 +838,6 @@ const RootCauseManager: React.FC = () => {
                     Clear Selection
                   </button>
                 </>
-              )}
-
-              {/* Quick Select All & Delete Button */}
-              {filteredRootCauses.length > 0 && filteredRootCauses.length !== rootCauses.length && (
-                <button
-                  onClick={() => {
-                    setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
-                    setTimeout(() => handleBulkDelete(), 100);
-                  }}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete All Filtered</span>
-                </button>
-              )}
-
-              {/* Quick Delete Blanks Button */}
-              {filters.showBlanks === 'blanks' && filteredRootCauses.length > 0 && (
-                <button
-                  onClick={() => {
-                    setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)));
-                    setTimeout(() => handleBulkDelete(), 100);
-                  }}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete All Blanks</span>
-                </button>
-              )}
-
-              {/* Show clear filters button when no results */}
-              {filteredRootCauses.length === 0 && rootCauses.length > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Clear Filters</span>
-                </button>
               )}
             </div>
           </div>
@@ -991,7 +882,6 @@ const RootCauseManager: React.FC = () => {
                           <span className="px-2 py-1 bg-gray-600 text-gray-300 text-xs rounded-full">
                             {getScheduleCount(rootCause.id)} schedules
                           </span>
-                          {/* Blank indicator */}
                           {(!rootCause.name || !rootCause.description ||
                             !rootCause.visual_indicators?.length ||
                             !rootCause.standard_solutions?.length) && (
@@ -1065,7 +955,7 @@ const RootCauseManager: React.FC = () => {
                       </div>
                       {rootCause.products && rootCause.products.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {rootCause.products.slice(0, 2).map((product, idx) => (
+                          {rootCause.products.slice(0, 2).map((product: any, idx: number) => (
                             <div key={idx} className="p-2 bg-gray-600 rounded text-xs">
                               <div className="font-medium text-white">{product.name}</div>
                               <div className="text-gray-400">{product.category} • {product.price_range}</div>
@@ -1181,7 +1071,6 @@ const RootCauseManager: React.FC = () => {
                   </h4>
 
                   <div className="space-y-4">
-                    {/* Standard Root Cause */}
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Standard Root Cause</label>
                       <div className="bg-gray-600 rounded-lg p-3">
@@ -1189,7 +1078,6 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Description */}
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Description</label>
                       <div className="bg-gray-600 rounded-lg p-3">
@@ -1197,13 +1085,12 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Visual Indicators */}
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Identified Visual Indicators</label>
                       <div className="bg-gray-600 rounded-lg p-3">
                         {showAIDocumentation.visual_indicators && showAIDocumentation.visual_indicators.length > 0 ? (
                           <ul className="space-y-1">
-                            {showAIDocumentation.visual_indicators.map((indicator, idx) => (
+                            {showAIDocumentation.visual_indicators.map((indicator: string, idx: number) => (
                               <li key={idx} className="flex items-center space-x-2 text-sm text-gray-200">
                                 <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
                                 <span>{indicator}</span>
@@ -1216,13 +1103,12 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Standard Solutions */}
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Generated Solutions</label>
                       <div className="bg-gray-600 rounded-lg p-3">
                         {showAIDocumentation.standard_solutions && showAIDocumentation.standard_solutions.length > 0 ? (
                           <ul className="space-y-1">
-                            {showAIDocumentation.standard_solutions.map((solution, idx) => (
+                            {showAIDocumentation.standard_solutions.map((solution: string, idx: number) => (
                               <li key={idx} className="flex items-center space-x-2 text-sm text-gray-200">
                                 <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
                                 <span>{solution}</span>
@@ -1235,32 +1121,12 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Standard Recommendations */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">AI Recommendations</label>
-                      <div className="bg-gray-600 rounded-lg p-3">
-                        {showAIDocumentation.standard_recommendations && showAIDocumentation.standard_recommendations.length > 0 ? (
-                          <ul className="space-y-1">
-                            {showAIDocumentation.standard_recommendations.map((rec, idx) => (
-                              <li key={idx} className="flex items-center space-x-2 text-sm text-gray-200">
-                                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-                                <span>{rec}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-gray-400 text-sm">No recommendations documented</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Seasonal Factors */}
                     {showAIDocumentation.seasonal_factors && showAIDocumentation.seasonal_factors.length > 0 && (
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">Seasonal Factors</label>
                         <div className="bg-gray-600 rounded-lg p-3">
                           <div className="flex flex-wrap gap-2">
-                            {showAIDocumentation.seasonal_factors.map((factor, idx) => (
+                            {showAIDocumentation.seasonal_factors.map((factor: string, idx: number) => (
                               <span key={idx} className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
                                 {factor}
                               </span>
@@ -1270,7 +1136,6 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Metadata */}
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">AI Metadata</label>
                       <div className="bg-gray-600 rounded-lg p-3">
@@ -1295,13 +1160,12 @@ const RootCauseManager: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Products */}
                     {showAIDocumentation.products && showAIDocumentation.products.length > 0 && (
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">AI Recommended Products</label>
                         <div className="bg-gray-600 rounded-lg p-3">
                           <div className="space-y-2">
-                            {showAIDocumentation.products.map((product, idx) => (
+                            {showAIDocumentation.products.map((product: any, idx: number) => (
                               <div key={idx} className="p-2 bg-gray-500 rounded text-sm">
                                 <div className="font-medium text-white">{product.name}</div>
                                 <div className="text-gray-300">{product.category}</div>
@@ -1319,7 +1183,6 @@ const RootCauseManager: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Raw JSON Data */}
                 <div className="mt-6 border-t border-gray-600 pt-4">
                   <details>
                     <summary className="text-sm font-medium text-gray-300 cursor-pointer hover:text-white">
@@ -1424,10 +1287,7 @@ const RootCauseManager: React.FC = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-medium text-white">Treatment Schedules</h4>
                     <button
-                      onClick={() => {
-                        setSelectedRootCauseForSchedule(selectedRootCause.id);
-                        setShowScheduleModal(true);
-                      }}
+                      onClick={() => openAddSchedule(selectedRootCause.id)}
                       className="flex items-center space-x-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -1460,6 +1320,13 @@ const RootCauseManager: React.FC = () => {
                                 >
                                   <Edit className="w-4 h-4" />
                                   <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSchedule(schedule.id)}
+                                  className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Delete</span>
                                 </button>
                               </div>
                             </div>
@@ -1554,7 +1421,7 @@ const RootCauseManager: React.FC = () => {
                       Visual Indicators
                     </label>
                     <button
-                      onClick={() => addArrayField('visual_indicators')}
+                      onClick={() => setNewRootCause(prev => ({ ...prev, visual_indicators: [...prev.visual_indicators, ''] }))}
                       className="text-green-400 hover:text-green-300 text-sm"
                     >
                       + Add Indicator
@@ -1565,13 +1432,19 @@ const RootCauseManager: React.FC = () => {
                       <input
                         type="text"
                         value={indicator}
-                        onChange={(e) => updateArrayField('visual_indicators', index, e.target.value)}
+                        onChange={(e) => setNewRootCause(prev => ({
+                          ...prev,
+                          visual_indicators: prev.visual_indicators.map((it, i) => i === index ? e.target.value : it)
+                        }))}
                         className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="e.g., Circular brown patches with dark edges"
                       />
                       {newRootCause.visual_indicators.length > 1 && (
                         <button
-                          onClick={() => removeArrayField('visual_indicators', index)}
+                          onClick={() => setNewRootCause(prev => ({
+                            ...prev,
+                            visual_indicators: prev.visual_indicators.filter((_, i) => i !== index)
+                          }))}
                           className="text-red-400 hover:text-red-300"
                         >
                           <X className="w-4 h-4" />
@@ -1587,7 +1460,7 @@ const RootCauseManager: React.FC = () => {
                       Standard Solutions
                     </label>
                     <button
-                      onClick={() => addArrayField('standard_solutions')}
+                      onClick={() => setNewRootCause(prev => ({ ...prev, standard_solutions: [...prev.standard_solutions, ''] }))}
                       className="text-green-400 hover:text-green-300 text-sm"
                     >
                       + Add Solution
@@ -1598,13 +1471,19 @@ const RootCauseManager: React.FC = () => {
                       <input
                         type="text"
                         value={solution}
-                        onChange={(e) => updateArrayField('standard_solutions', index, e.target.value)}
+                        onChange={(e) => setNewRootCause(prev => ({
+                          ...prev,
+                          standard_solutions: prev.standard_solutions.map((it, i) => i === index ? e.target.value : it)
+                        }))}
                         className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="e.g., Apply fungicide containing propiconazole"
                       />
                       {newRootCause.standard_solutions.length > 1 && (
                         <button
-                          onClick={() => removeArrayField('standard_solutions', index)}
+                          onClick={() => setNewRootCause(prev => ({
+                            ...prev,
+                            standard_solutions: prev.standard_solutions.filter((_, i) => i !== index)
+                          }))}
                           className="text-red-400 hover:text-red-300"
                         >
                           <X className="w-4 h-4" />
@@ -1732,7 +1611,7 @@ const RootCauseManager: React.FC = () => {
                       Visual Indicators
                     </label>
                     <button
-                      onClick={() => addEditArrayField('visual_indicators')}
+                      onClick={() => setEditForm(prev => ({ ...prev, visual_indicators: [...prev.visual_indicators, ''] }))}
                       className="text-green-400 hover:text-green-300 text-sm"
                     >
                       + Add Indicator
@@ -1743,13 +1622,19 @@ const RootCauseManager: React.FC = () => {
                       <input
                         type="text"
                         value={indicator}
-                        onChange={(e) => updateEditArrayField('visual_indicators', index, e.target.value)}
+                        onChange={(e) => setEditForm(prev => ({
+                          ...prev,
+                          visual_indicators: prev.visual_indicators.map((it, i) => i === index ? e.target.value : it)
+                        }))}
                         className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="e.g., Circular brown patches with dark edges"
                       />
                       {editForm.visual_indicators.length > 1 && (
                         <button
-                          onClick={() => removeEditArrayField('visual_indicators', index)}
+                          onClick={() => setEditForm(prev => ({
+                            ...prev,
+                            visual_indicators: prev.visual_indicators.filter((_, i) => i !== index)
+                          }))}
                           className="text-red-400 hover:text-red-300"
                         >
                           <X className="w-4 h-4" />
@@ -1765,7 +1650,7 @@ const RootCauseManager: React.FC = () => {
                       Standard Solutions
                     </label>
                     <button
-                      onClick={() => addEditArrayField('standard_solutions')}
+                      onClick={() => setEditForm(prev => ({ ...prev, standard_solutions: [...prev.standard_solutions, ''] }))}
                       className="text-green-400 hover:text-green-300 text-sm"
                     >
                       + Add Solution
@@ -1776,13 +1661,19 @@ const RootCauseManager: React.FC = () => {
                       <input
                         type="text"
                         value={solution}
-                        onChange={(e) => updateEditArrayField('standard_solutions', index, e.target.value)}
+                        onChange={(e) => setEditForm(prev => ({
+                          ...prev,
+                          standard_solutions: prev.standard_solutions.map((it, i) => i === index ? e.target.value : it)
+                        }))}
                         className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="e.g., Apply fungicide containing propiconazole"
                       />
                       {editForm.standard_solutions.length > 1 && (
                         <button
-                          onClick={() => removeEditArrayField('standard_solutions', index)}
+                          onClick={() => setEditForm(prev => ({
+                            ...prev,
+                            standard_solutions: prev.standard_solutions.filter((_, i) => i !== index)
+                          }))}
                           className="text-red-400 hover:text-red-300"
                         >
                           <X className="w-4 h-4" />
@@ -1813,17 +1704,20 @@ const RootCauseManager: React.FC = () => {
         </div>
       )}
 
-      {/* Add Schedule Modal */}
+      {/* Add/Edit Schedule Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Add Treatment Schedule</h3>
+                <h3 className="text-xl font-bold text-white">
+                  {editingSchedule ? 'Edit Treatment Schedule' : 'Add Treatment Schedule'}
+                </h3>
                 <button
                   onClick={() => {
                     setShowScheduleModal(false);
                     setSelectedRootCauseForSchedule('');
+                    setEditingSchedule(null);
                   }}
                   className="text-gray-400 hover:text-white"
                 >
@@ -2078,6 +1972,7 @@ const RootCauseManager: React.FC = () => {
                   onClick={() => {
                     setShowScheduleModal(false);
                     setSelectedRootCauseForSchedule('');
+                    setEditingSchedule(null);
                   }}
                   className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
                 >
@@ -2088,7 +1983,7 @@ const RootCauseManager: React.FC = () => {
                   className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   <Calendar className="w-4 h-4" />
-                  <span>Create Schedule</span>
+                  <span>{editingSchedule ? 'Save Schedule' : 'Create Schedule'}</span>
                 </button>
               </div>
             </div>
