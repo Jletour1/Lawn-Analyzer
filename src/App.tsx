@@ -1,16 +1,14 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { Leaf, Camera, Brain, Target } from 'lucide-react';
 import AdminApp from './components/AdminApp';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/admin" element={<AdminApp />} />
-        <Route path="/" element={<MainApp />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/admin" element={<AdminApp />} />
+      <Route path="/" element={<MainApp />} />
+    </Routes>
   );
 }
 
