@@ -1,194 +1,340 @@
-# Lawn Analyzer - AI-Powered Lawn Diagnostic Tool
+# Lawn Analyzer - Production AWS Deployment
 
-A comprehensive web application that provides users with intelligent lawn diagnostics and treatment recommendations using real OpenAI GPT-4o Vision API and Reddit data collection.
+A comprehensive web application that provides users with intelligent lawn diagnostics and treatment recommendations. Now migrated from localStorage to a full AWS server architecture with PostgreSQL, Redis, S3, and CloudFront.
 
-## 🚀 Setup Instructions
+## 🏗️ Architecture Overview
+
+### Frontend (React + TypeScript)
+- **Hosting**: AWS S3 + CloudFront CDN
+- **Authentication**: JWT-based with React Context
+- **API Communication**: RESTful API client with caching
+- **Image Upload**: Direct to S3 via signed URLs
+
+### Backend (Node.js + Express)
+- **Hosting**: AWS ECS Fargate
+- **Database**: PostgreSQL on AWS RDS
+- **Cache**: Redis on AWS ElastiCache
+- **File Storage**: AWS S3 with CloudFront CDN
+- **Load Balancer**: AWS Application Load Balancer
+
+### Infrastructure
+- **Container Orchestration**: AWS ECS with Fargate
+- **Database**: AWS RDS PostgreSQL with automated backups
+- **Caching**: AWS ElastiCache Redis
+- **CDN**: AWS CloudFront for global content delivery
+- **Security**: VPC, Security Groups, IAM roles
+- **Monitoring**: CloudWatch logs and metrics
+
+## 🚀 Deployment Guide
 
 ### Prerequisites
+- AWS CLI configured with appropriate permissions
+- Docker installed for local development
+- Node.js 18+ for local development
+- Domain name registered (optional but recommended)
 
-1. **OpenAI API Key**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. **Reddit API Credentials**: Create app at [Reddit Apps](https://www.reddit.com/prefs/apps)
+### 1. Infrastructure Deployment
 
-### Quick Start
+Deploy the AWS infrastructure using CloudFormation:
 
-1. **Install dependencies:**
 ```bash
+# Deploy the infrastructure
+aws cloudformation create-stack \
+  --stack-name lawn-analyzer-infrastructure \
+  --template-body file://deployment/aws-infrastructure.yml \
+  --parameters ParameterKey=Environment,ParameterValue=production \
+               ParameterKey=DomainName,ParameterValue=lawnanalyzer.com \
+               ParameterKey=DBPassword,ParameterValue=YourSecurePassword123! \
+  --capabilities CAPABILITY_IAM
+```
+
+### 2. Database Setup
+
+Run database migrations:
+
+```bash
+cd server
 npm install
+npx prisma migrate deploy
+npx prisma generate
 ```
 
-2. **Configure environment variables:**
+### 3. Container Deployment
+
+Build and push the Docker container:
+
 ```bash
-cp .env.local.example .env
-# Edit .env with your API keys
+# Build the container
+cd server
+docker build -t lawn-analyzer-api .
+
+# Tag and push to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+docker tag lawn-analyzer-api:latest 123456789012.dkr.ecr.us-east-1.amazonaws.com/lawn-analyzer-api:latest
+docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/lawn-analyzer-api:latest
 ```
 
-3. **Start development server:**
+### 4. Frontend Deployment
+
+Build and deploy the frontend:
+
 ```bash
+# Build the frontend
+npm run build
+
+# Deploy to S3
+aws s3 sync dist/ s3://your-frontend-bucket --delete
+
+# Invalidate CloudFront cache
+aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
+```
+
+## 🔧 Local Development
+
+### Backend Development
+
+```bash
+cd server
+npm install
+
+# Set up local database
+docker-compose up -d postgres redis
+
+# Run migrations
+npx prisma migrate dev
+
+# Start development server
 npm run dev
 ```
 
-4. **Open your browser:**
-Navigate to `http://localhost:5173`
+### Frontend Development
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API endpoints
+
+# Start development server
+npm run dev
+```
 
 ## 🔑 Environment Configuration
 
-Create a `.env` file with:
-
+### Frontend (.env)
 ```env
-# OpenAI Configuration (Required for AI analysis)
+VITE_API_BASE_URL=https://api.lawnanalyzer.com/api
 VITE_OPENAI_API_KEY=your_openai_api_key_here
-VITE_OPENAI_PROJECT=your_project_id_here
-
-# Reddit API Configuration (Required for data collection)
-VITE_REDDIT_CLIENT_ID=your_reddit_client_id
-VITE_REDDIT_CLIENT_SECRET=your_reddit_client_secret
-VITE_REDDIT_USER_AGENT=lawn_analyzer_v1.0_by_/u/yourusername
-
-# Development Settings
-NODE_ENV=development
-VITE_DEV_MODE=true
+VITE_AWS_REGION=us-east-1
+VITE_S3_BUCKET=lawnanalyzer-images
+VITE_CLOUDFRONT_URL=https://d1234567890.cloudfront.net
 ```
 
-### API Setup Instructions
-
-#### OpenAI API Setup
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create new API key
-3. Add billing information (GPT-4o Vision requires paid account)
-4. Copy key to `VITE_OPENAI_API_KEY`
-
-#### Reddit API Setup
-1. Go to [Reddit Apps](https://www.reddit.com/prefs/apps)
-2. Click "Create App" or "Create Another App"
-3. Choose "script" type
-4. Copy Client ID and Secret to your .env file
-
-## 🎯 Features
-
-### Real AI Analysis
-- **GPT-4o Vision**: Analyzes actual lawn images
-- **Professional Diagnostics**: Uses expert-level system prompts
-- **Confidence Scoring**: Provides accuracy estimates
-- **Fallback System**: Uses mock analysis if API fails
-
-### Reddit Data Collection
-- **Real-time Collection**: Gathers posts from lawn care subreddits
-- **Comment Analysis**: Extracts solutions from community discussions
-- **Smart Filtering**: Focuses on relevant lawn care content
-- **Rate Limiting**: Respects Reddit API limits
-
-### Local Development Features
-
-- **Local Data Storage**: All data saved in browser localStorage
-- **Image Storage**: Base64 encoding for development
-- **Export/Import**: Download your data as JSON files
-- **Hybrid Mode**: Real APIs with local storage
-
-## 🔄 How It Works
-
-### User Flow
-1. **Upload Image**: User uploads lawn photo
-2. **Describe Problem**: User provides detailed description
-3. **AI Analysis**: GPT-4o Vision analyzes image + description
-4. **Get Results**: Detailed diagnosis with treatment plan
-5. **Expert Review**: Option to flag for human expert review
-
-### Admin Flow
-1. **Data Collection**: Collect posts from Reddit automatically
-2. **Review Submissions**: Manage user submissions and flagged cases
-3. **Export Data**: Download collected data for analysis
-4. **Monitor Performance**: Track collection and analysis stats
-
-## 📊 Data Management
-
-### Local Storage Structure
-```json
-{
-  "submissions": [
-    {
-      "id": "timestamp",
-      "user_email": "user@example.com", 
-      "image_data": "data:image/jpeg;base64,...",
-      "problem_description": "Brown patches...",
-      "analysis_result": { ... },
-      "created_at": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "reddit_analyses": [
-    {
-      "id": "reddit_post_id",
-      "title": "Help with brown spots",
-      "selftext": "My lawn has...",
-      "comments": [ ... ],
-      "created_utc": 1234567890
-    }
-  ]
-}
+### Backend (.env)
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://username:password@localhost:5432/lawnanalyzer
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=your_jwt_secret_here
+OPENAI_API_KEY=your_openai_api_key_here
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+S3_BUCKET=lawnanalyzer-images
 ```
 
-### Export Options
-- **JSON Export**: Complete data dump
-- **CSV Export**: Structured analysis results  
-- **Image Export**: Separate image files
+## 🎯 Key Features
 
-## 🚀 Production Deployment
+### User Features
+- **User Authentication**: Secure JWT-based authentication
+- **Image Upload**: Direct S3 upload with progress tracking
+- **AI Analysis**: GPT-4o Vision analysis with confidence scoring
+- **Treatment Plans**: Step-by-step treatment schedules
+- **Similar Cases**: Database-driven similarity matching
 
-### Migration Checklist
-- [ ] Replace localStorage with real database (PostgreSQL/MongoDB)
-- [ ] Implement proper file storage (AWS S3/Cloudinary)
-- [ ] Add user authentication system
-- [ ] Set up email service for expert reviews
-- [ ] Configure server-side API endpoints
-- [ ] Add proper error handling and logging
-- [ ] Implement rate limiting and security measures
+### Admin Features
+- **User Management**: View and manage user accounts
+- **Data Collection**: Automated Reddit data collection
+- **AI Analysis**: Batch processing of collected data
+- **Root Cause Management**: Dynamic category system
+- **Category Suggestions**: AI-suggested new categories
+- **Analytics Dashboard**: Usage statistics and insights
+
+### Technical Features
+- **Scalable Architecture**: ECS Fargate auto-scaling
+- **Global CDN**: CloudFront for fast image delivery
+- **Caching**: Redis for improved performance
+- **Security**: VPC, security groups, encrypted storage
+- **Monitoring**: CloudWatch logs and metrics
+- **Backup**: Automated RDS backups
+
+## 📊 Database Schema
+
+The application uses PostgreSQL with Prisma ORM:
+
+- **Users**: Authentication and user management
+- **Submissions**: User lawn analysis requests
+- **RootCauses**: Diagnostic categories and treatments
+- **TreatmentSchedules**: Step-by-step treatment plans
+- **CategorySuggestions**: AI-suggested new categories
+- **RedditPosts/Comments**: Collected community data
+- **LearningPatterns**: AI learning and improvement data
 
 ## 🛠 Technology Stack
 
-- **Frontend**: React + TypeScript + Tailwind CSS
-- **AI**: OpenAI GPT-4o Vision API
-- **Data Collection**: Reddit API
-- **Storage**: localStorage (dev) → Database (prod)
+### Frontend
+- **Framework**: React 18 + TypeScript
+- **Styling**: Tailwind CSS
 - **Icons**: Lucide React
-- **Build**: Vite
+- **Build Tool**: Vite
+- **State Management**: React Context + Hooks
 
-## 🔧 Development Commands
+### Backend
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Database**: PostgreSQL with Prisma ORM
+- **Cache**: Redis
+- **Authentication**: JWT
+- **File Upload**: Multer + AWS S3
+- **AI**: OpenAI GPT-4o Vision API
 
-```bash
-# Start development server
-npm run dev
+### Infrastructure
+- **Cloud Provider**: AWS
+- **Container**: Docker + ECS Fargate
+- **Database**: AWS RDS PostgreSQL
+- **Cache**: AWS ElastiCache Redis
+- **Storage**: AWS S3 + CloudFront CDN
+- **Load Balancer**: AWS Application Load Balancer
+- **DNS**: AWS Route 53 (optional)
 
-# Build for production  
-npm run build
+## 🔧 API Endpoints
 
-# Preview production build
-npm run preview
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/logout` - User logout
 
-# Run linting
-npm run lint
+### Submissions
+- `POST /api/submissions` - Submit lawn analysis
+- `GET /api/submissions` - Get user submissions
+- `GET /api/submissions/:id` - Get specific submission
+
+### Admin
+- `GET /api/admin/submissions` - Get all submissions
+- `PUT /api/admin/submissions/:id` - Update submission
+- `POST /api/admin/reddit/collect` - Trigger Reddit collection
+- `POST /api/admin/analysis/run` - Trigger AI analysis
+- `GET /api/admin/stats` - Get dashboard statistics
+
+### Root Causes & Treatments
+- `GET /api/root-causes` - Get all root causes
+- `POST /api/root-causes` - Create root cause
+- `PUT /api/root-causes/:id` - Update root cause
+- `GET /api/treatment-schedules` - Get treatment schedules
+- `POST /api/treatment-schedules` - Create treatment schedule
+
+## 📈 Monitoring & Maintenance
+
+### Health Checks
+- Application: `GET /health`
+- Database connectivity
+- Redis connectivity
+- S3 access verification
+
+### Logging
+- Application logs via CloudWatch
+- Access logs via ALB
+- Database logs via RDS
+- Error tracking and alerting
+
+### Backup Strategy
+- **Database**: Automated RDS backups (7-day retention)
+- **Images**: S3 versioning enabled
+- **Code**: Git repository with CI/CD
+
+### Scaling
+- **Horizontal**: ECS service auto-scaling
+- **Database**: RDS read replicas for read-heavy workloads
+- **Cache**: ElastiCache cluster mode for high availability
+- **CDN**: CloudFront global edge locations
+
+## 🔒 Security Features
+
+- **Authentication**: JWT with secure HTTP-only cookies
+- **Authorization**: Role-based access control
+- **Rate Limiting**: API endpoint protection
+- **Input Validation**: Request sanitization and validation
+- **HTTPS**: SSL/TLS encryption for all traffic
+- **VPC**: Private network isolation
+- **Security Groups**: Firewall rules
+- **IAM**: Least privilege access policies
+- **Encryption**: At-rest and in-transit encryption
+
+## 💰 Cost Optimization
+
+### AWS Services Cost Estimates (Monthly)
+- **ECS Fargate**: ~$15-30 (1 task, 0.25 vCPU, 0.5 GB RAM)
+- **RDS PostgreSQL**: ~$15-25 (db.t3.micro)
+- **ElastiCache Redis**: ~$15-20 (cache.t3.micro)
+- **S3 Storage**: ~$5-15 (depending on image volume)
+- **CloudFront**: ~$5-10 (depending on traffic)
+- **ALB**: ~$20-25 (fixed cost)
+- **Data Transfer**: ~$5-15 (depending on usage)
+
+**Total Estimated Cost**: $80-140/month for production workload
+
+### Cost Optimization Strategies
+- Use Fargate Spot for non-critical workloads
+- Implement S3 lifecycle policies for old images
+- Use CloudFront caching to reduce origin requests
+- Monitor and right-size resources based on usage
+- Consider Reserved Instances for predictable workloads
+
+## 🚀 Future Enhancements
+
+- **Mobile App**: React Native mobile application
+- **Real-time Notifications**: WebSocket-based updates
+- **Advanced Analytics**: Machine learning insights
+- **Multi-region Deployment**: Global availability
+- **API Rate Limiting**: Per-user quotas
+- **Payment Integration**: Stripe for premium features
+- **Email Notifications**: SES for user communications
+- **Advanced Monitoring**: Custom CloudWatch dashboards
+
+---
+
+**Built with ❤️ for production deployment on AWS**
+
+*Ready for scale with enterprise-grade architecture and security*
 ```
 
-## 📱 Admin Access
-
-- **URL**: `http://localhost:5173/admin`
-- **Username**: `admin`
-- **Password**: `admin123`
-
-## ⚠️ Important Notes
-
-### API Costs
-- **OpenAI**: GPT-4o Vision costs ~$0.01-0.03 per image analysis
-- **Reddit**: Free tier allows 100 requests/minute
-
-### Rate Limits
-- **OpenAI**: 500 requests/minute (paid tier)
-- **Reddit**: 100 requests/minute per app
-
-### Data Privacy
-- User images stored locally during development
-- No data sent to third parties except OpenAI for analysis
-- Reddit data collection follows API terms of service
-
 ## 🆘 Troubleshooting
+
+### Common Issues
+1. **Database Connection**: Check VPC security groups and RDS endpoint
+2. **Image Upload Fails**: Verify S3 bucket permissions and CORS settings
+3. **Authentication Issues**: Check JWT secret and token expiration
+4. **API Timeouts**: Review ECS task resources and ALB timeout settings
+
+### Debug Commands
+```bash
+# Check ECS service status
+aws ecs describe-services --cluster production-lawn-analyzer --services production-lawn-analyzer-api
+
+# View application logs
+aws logs tail /ecs/production-lawn-analyzer --follow
+
+# Check database connectivity
+psql -h your-db-endpoint.rds.amazonaws.com -U lawnanalyzer -d lawnanalyzer
+
+# Test Redis connection
+redis-cli -h your-redis-endpoint.cache.amazonaws.com
+```
+
+For additional support, check the CloudWatch logs and AWS service health dashboards.
+
 
 ### Common Issues
 

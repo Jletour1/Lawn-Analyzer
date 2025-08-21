@@ -1,0 +1,254 @@
+// Prisma schema for PostgreSQL database
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  password_hash     String
+  role              Role     @default(USER)
+  subscription_tier Tier     @default(FREE)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  submissions       Submission[]
+  admin_actions     AdminAction[]
+
+  @@map("users")
+}
+
+model Submission {
+  id                   String   @id @default(cuid())
+  user_id              String
+  user_email           String
+  user_name            String?
+  user_phone           String?
+  image_url            String
+  image_filename       String
+  problem_description  String
+  grass_type           String?
+  location             String?
+  season               String?
+  recent_treatments    String?
+  pet_traffic          Boolean  @default(false)
+  has_dog              Boolean  @default(false)
+  analysis_result      Json?
+  flagged_for_review   Boolean  @default(false)
+  review_reason        String?
+  admin_reviewed       Boolean  @default(false)
+  admin_notes          String?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+  reviewed_at          DateTime?
+
+  // Relations
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("submissions")
+}
+
+model RootCause {
+  id                      String   @id @default(cuid())
+  name                    String   @unique
+  category                Category
+  description             String
+  visual_indicators       String[]
+  standard_root_cause     String
+  standard_solutions      String[]
+  standard_recommendations String[]
+  products                Json[]
+  confidence_threshold    Float    @default(0.7)
+  success_rate            Float    @default(0.5)
+  case_count              Int      @default(0)
+  seasonal_factors        String[]
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  // Relations
+  treatment_schedules     TreatmentSchedule[]
+
+  @@map("root_causes")
+}
+
+model TreatmentSchedule {
+  id                String   @id @default(cuid())
+  root_cause_id     String
+  name              String
+  description       String
+  total_duration    String
+  difficulty_level  Difficulty
+  steps             Json[]
+  success_indicators String[]
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  root_cause        RootCause @relation(fields: [root_cause_id], references: [id], onDelete: Cascade)
+
+  @@map("treatment_schedules")
+}
+
+model CategorySuggestion {
+  id                    String   @id @default(cuid())
+  suggested_category    String
+  suggested_subcategory String?
+  description           String
+  reasoning             String
+  confidence            Float
+  supporting_cases      String[]
+  visual_indicators     String[]
+  suggested_solutions   String[]
+  suggested_products    String[]
+  status                SuggestionStatus @default(PENDING)
+  admin_notes           String?
+  reviewed_by           String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  reviewed_at           DateTime?
+
+  @@map("category_suggestions")
+}
+
+model RedditPost {
+  id              String   @id
+  subreddit       String
+  title           String
+  selftext        String?
+  author          String
+  created_utc     Int
+  url             String?
+  score           Int
+  num_comments    Int
+  image_path      String?
+  post_hint       String?
+  upvote_ratio    Float?
+  collected_at    DateTime @default(now())
+  problem_category String?
+  confidence_level String?
+  has_image       Boolean  @default(false)
+  text_quality_score Float @default(0.0)
+  word_count      Int      @default(0)
+
+  // Relations
+  comments        RedditComment[]
+  analysis        RedditAnalysis?
+
+  @@map("reddit_posts")
+}
+
+model RedditComment {
+  id                    String   @id
+  post_id               String
+  parent_id             String?
+  author                String
+  body                  String
+  score                 Int
+  created_utc           Int
+  is_solution           Boolean  @default(false)
+  is_diagnostic         Boolean  @default(false)
+  has_product_mention   Boolean  @default(false)
+  confidence_score      Float    @default(0.0)
+  comment_type          String?
+
+  // Relations
+  post                  RedditPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@map("reddit_comments")
+}
+
+model RedditAnalysis {
+  id                String   @id @default(cuid())
+  post_id           String   @unique
+  model             String
+  root_cause        String
+  solutions         String[]
+  confidence        String
+  categories        String[]
+  reasoning_json    Json
+  analyzed_at       DateTime @default(now())
+  weed_percentage   Float    @default(0.0)
+  health_score      Float    @default(5.0)
+  treatment_urgency String   @default("medium")
+  comment_insights  Json?
+
+  // Relations
+  post              RedditPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@map("reddit_analyses")
+}
+
+model AdminAction {
+  id          String   @id @default(cuid())
+  admin_id    String
+  action_type String
+  target_type String
+  target_id   String
+  details     Json?
+  created_at  DateTime @default(now())
+
+  // Relations
+  admin       User     @relation(fields: [admin_id], references: [id])
+
+  @@map("admin_actions")
+}
+
+model LearningPattern {
+  id                    String   @id @default(cuid())
+  pattern_type          PatternType
+  confidence            Float
+  success_rate          Float
+  case_count            Int
+  visual_features       Json
+  treatment_outcomes    Json
+  contextual_factors    Json
+  created_at            DateTime @default(now())
+  last_updated          DateTime @updatedAt
+
+  @@map("learning_patterns")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Tier {
+  FREE
+  PREMIUM
+}
+
+enum Category {
+  DISEASE
+  PEST
+  ENVIRONMENTAL
+  MAINTENANCE
+  WEED
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  EXPERT
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PatternType {
+  VISUAL_SIMILARITY
+  TREATMENT_SUCCESS
+  SEASONAL_CORRELATION
+  USER_FEEDBACK
+}
