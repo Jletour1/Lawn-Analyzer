@@ -1,3 +1,5 @@
+Looking at this React component file, I can see it's missing several closing brackets. Here's the corrected version with the missing brackets added:
+
 import React, { useState, useEffect } from 'react';
 import { getLocalData, saveLocalData } from '../utils/localStorage';
 import { getCategoryNames, getCategoryStats } from '../utils/categoryManager';
@@ -106,6 +108,11 @@ const RootCauseManager: React.FC = () => {
       window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
       window.removeEventListener('analysisComplete', handleDataUpdate);
     };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+    loadAvailableCategories();
     
     // Listen for new root causes from other components
     const handleRootCausesUpdate = (event: any) => {
@@ -762,46 +769,46 @@ const RootCauseManager: React.FC = () => {
               </div>
             )}
 
-        {/* Bulk Actions Toolbar */}
-        {selectedForDelete.size > 0 && (
-          <div className="mb-4 p-4 bg-blue-900/50 border border-blue-700 rounded-lg">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                <span className="text-sm font-medium text-blue-300">
-                  {selectedForDelete.size} item{selectedForDelete.size > 1 ? 's' : ''} selected
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => setSelectedForDelete(new Set())}
-                    className="text-sm text-blue-400 hover:text-blue-300"
-                  >
-                    Clear Selection
-                  </button>
-                  <span className="text-gray-500">•</span>
-                  <button
-                    onClick={() => setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)))}
-                    className="text-sm text-blue-400 hover:text-blue-300"
-                  >
-                    Select All Visible
-                  </button>
+            {/* Bulk Actions Toolbar */}
+            {selectedForDelete.size > 0 && (
+              <div className="mb-4 p-4 bg-blue-900/50 border border-blue-700 rounded-lg">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                    <span className="text-sm font-medium text-blue-300">
+                      {selectedForDelete.size} item{selectedForDelete.size > 1 ? 's' : ''} selected
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => setSelectedForDelete(new Set())}
+                        className="text-sm text-blue-400 hover:text-blue-300"
+                      >
+                        Clear Selection
+                      </button>
+                      <span className="text-gray-500">•</span>
+                      <button
+                        onClick={() => setSelectedForDelete(new Set(filteredRootCauses.map(rc => rc.id)))}
+                        className="text-sm text-blue-400 hover:text-blue-300"
+                      >
+                        Select All Visible
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                    <span className="text-xs text-gray-400">
+                      Press Delete key or use button
+                    </span>
+                    <button
+                      onClick={handleBulkDelete}
+                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm w-full sm:w-auto"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Selected</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                <span className="text-xs text-gray-400">
-                  Press Delete key or use button
-                </span>
-                <button
-                  onClick={handleBulkDelete}
-                  className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm w-full sm:w-auto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Selected</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            )}
             <button
               onClick={clearFilters}
               className="px-3 py-2 text-gray-400 hover:text-white text-sm transition-colors"
@@ -1111,22 +1118,12 @@ const RootCauseManager: React.FC = () => {
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="bg-gray-700 rounded-lg p-4">
-                      <div className="flex items-center space-x-3">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="text-gray-400">Category:</span>
                       <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getCategoryColor(showAIDocumentation.category)}`}>
                         {showAIDocumentation.category}
                       </span>
-                        <button
-                          onClick={() => handleEditSchedule(schedule)}
-                          className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                          <span>Edit</span>
-                        </button>
-                      </div>
                     </div>
                     <div>
                       <span className="text-gray-400">Confidence:</span>
@@ -1410,7 +1407,7 @@ const RootCauseManager: React.FC = () => {
                             <div className="flex items-center justify-between mb-2">
                               <h5 className="font-medium text-white">{schedule.name}</h5>
                               <div className="flex items-center space-x-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                <span className={\`px-2 py-1 rounded-full text-xs font-medium ${
                                   schedule.difficulty_level === 'beginner' ? 'bg-green-100 text-green-800' :
                                   schedule.difficulty_level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-red-100 text-red-800'
@@ -1420,6 +1417,13 @@ const RootCauseManager: React.FC = () => {
                                 <span className="text-xs text-gray-300">
                                   {schedule.steps.length} steps
                                 </span>
+                                <button
+                                  onClick={() => handleEditSchedule(schedule)}
+                                  className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  <span>Edit</span>
+                                </button>
                               </div>
                             </div>
                             <p className="text-sm text-gray-300 mb-2">{schedule.description}</p>
