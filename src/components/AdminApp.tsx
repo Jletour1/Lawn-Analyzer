@@ -117,7 +117,7 @@ const AdminApp: React.FC = () => {
                 value={loginCredentials.username}
                 onChange={(e) => setLoginCredentials(prev => ({ ...prev, username: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Enter username (admin)"
+                placeholder="Enter username"
               />
             </div>
 
@@ -155,7 +155,7 @@ const AdminApp: React.FC = () => {
           <div className="mt-8 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 text-center">
               <strong>Admin Access:</strong><br />
-              Contact administrator for credentials
+              Username: admin | Password: admin123
             </p>
           </div>
         </div>

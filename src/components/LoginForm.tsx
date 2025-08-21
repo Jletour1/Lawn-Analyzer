@@ -27,7 +27,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     try {
       if (isLogin) {
         // For admin login, use username lookup
-        const email = formData.username === 'Jletz14' ? 'admin@lawnanalyzer.com' : formData.username;
+        const email = formData.username === 'admin' ? 'admin@lawnanalyzer.com' : formData.username;
         const result = await login(email, formData.password);
         if (result.success) {
           onSuccess?.();
