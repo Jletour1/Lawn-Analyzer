@@ -163,7 +163,7 @@ npm run dev
 
 #### 7. Test Local Setup
 
-1. **Open browser to http://localhost:5173**
+1. **Open browser to http://localhost:5173 (NOT https://)**
 2. **Test user registration:**
    - Create a new account
    - Verify email/password login works
