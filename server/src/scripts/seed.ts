@@ -9,11 +9,11 @@ async function main() {
   // Create production admin user
   const adminPassword = await bcrypt.hash('Fanduel01', 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'Jletz14' },
+    where: { email: 'admin@lawnanalyzer.com' },
     update: {},
     create: {
-      email: 'Jletz14',
-      name: 'Administrator',
+      email: 'admin@lawnanalyzer.com',
+      name: 'Jletz14',
       password_hash: adminPassword,
       role: 'ADMIN'
     }
@@ -144,7 +144,7 @@ async function main() {
   }
 
   console.log('✅ Database seeded successfully');
-  console.log(`👤 Admin user: Jletz14 / Fanduel01`);
+  console.log(`👤 Admin user: Jletz14 (username) / Fanduel01 (password)`);
   console.log(`🌿 Created ${rootCauses.length} root causes with treatment schedules`);
 }
 

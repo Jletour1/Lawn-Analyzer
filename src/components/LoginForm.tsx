@@ -11,7 +11,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
     name: '',
     confirmPassword: ''
@@ -26,7 +26,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
     try {
       if (isLogin) {
-        const result = await login(formData.email, formData.password);
+        // For admin login, use username lookup
+        const email = formData.username === 'Jletz14' ? 'admin@lawnanalyzer.com' : formData.username;
+        const result = await login(email, formData.password);
         if (result.success) {
           onSuccess?.();
         } else {
@@ -44,7 +46,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         }
 
         const result = await register({
-          email: formData.email,
+          email: formData.username.includes('@') ? formData.username : `${formData.username}@example.com`,
           password: formData.password,
           name: formData.name
         });

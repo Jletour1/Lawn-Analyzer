@@ -59,7 +59,7 @@ class ErrorBoundary extends React.Component {
 const AdminApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginCredentials, setLoginCredentials] = useState({ username: '', password: '' });
+  const [loginCredentials, setLoginCredentials] = useState({ username: 'Jletz14', password: '' });
 
   useEffect(() => {
     console.log('AdminApp: Checking authentication...');
@@ -70,12 +70,12 @@ const AdminApp: React.FC = () => {
   }, []);
 
   const handleLogin = () => {
-    const username = loginCredentials.username.trim().toLowerCase();
+    const username = loginCredentials.username.trim();
     const password = loginCredentials.password.trim();
 
     console.log('Login attempt:', { username, password: password ? '[PROVIDED]' : '[EMPTY]' });
 
-    if (username === 'jletz14' && password === 'Fanduel01') {
+    if (username === 'Jletz14' && password === 'Fanduel01') {
       localStorage.setItem('isAdminAuthenticated', 'true');
       setIsAuthenticated(true);
       console.log('Login successful');
