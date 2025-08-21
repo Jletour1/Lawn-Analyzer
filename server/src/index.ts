@@ -1,9 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import compression from 'compression';
-import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
 // Load environment variables first
@@ -24,30 +20,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
-app.use(compression());
-
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : ['http://localhost:5173', 'https://localhost:5173'],
   credentials: true
 }));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/api/', limiter);
-
-// Stricter rate limiting for analysis endpoints
-const analysisLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // limit each IP to 10 analysis requests per hour
-  message: 'Analysis rate limit exceeded. Please try again later.'
-});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -61,9 +38,6 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
-
-// Logging
-app.use(morgan('combined'));
 
 // Temporary basic auth endpoint for testing
 app.post('/api/auth/login', (req, res) => {
