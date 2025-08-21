@@ -1,12 +1,12 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Leaf, Camera, Brain, Target } from 'lucide-react';
-import AdminApp from './components/AdminApp';
+import UnifiedAdminDashboard from './components/UnifiedAdminDashboard';
 
 function App() {
   return (
     <Routes>
-      <Route path="/admin" element={<AdminApp />} />
+      <Route path="/admin" element={<UnifiedAdminDashboard />} />
       <Route path="/" element={<MainApp />} />
     </Routes>
   );
