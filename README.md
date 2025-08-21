@@ -2,6 +2,236 @@
 
 A comprehensive web application that provides users with intelligent lawn diagnostics and treatment recommendations. This guide will walk you through deploying the entire application on AWS from scratch.
 
+## 🏠 Local Development Setup (Test Before Production)
+
+Before deploying to AWS, you can run everything locally for testing and development.
+
+### Quick Local Setup
+
+#### 1. Prerequisites for Local Development
+```bash
+# Install required tools
+- Node.js 18+ (https://nodejs.org/)
+- Docker Desktop (https://www.docker.com/products/docker-desktop/)
+- Git
+```
+
+#### 2. Clone and Install
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd lawn-analyzer
+
+# Install frontend dependencies
+npm install
+
+# Install backend dependencies
+cd server
+npm install
+cd ..
+```
+
+#### 3. Set Up Local Environment Variables
+
+**Frontend (.env):**
+```env
+# Local Development Environment Variables
+NODE_ENV=development
+VITE_DEV_MODE=true
+
+# Local API endpoint
+VITE_API_BASE_URL=http://localhost:3001/api
+
+# OpenAI API (Required for AI analysis)
+VITE_OPENAI_API_KEY=sk-your-openai-key-here
+
+# Reddit API (Optional - for data collection)
+VITE_REDDIT_CLIENT_ID=your-reddit-client-id
+VITE_REDDIT_CLIENT_SECRET=your-reddit-client-secret
+
+# Local storage settings
+VITE_USE_LOCAL_STORAGE=true
+VITE_MOCK_ANALYSIS=false
+```
+
+**Backend (server/.env):**
+```env
+# Server Configuration
+NODE_ENV=development
+PORT=3001
+
+# Local PostgreSQL (via Docker)
+DATABASE_URL=postgresql://lawnanalyzer:password123@localhost:5432/lawnanalyzer_dev
+
+# Local Redis (via Docker)
+REDIS_URL=redis://localhost:6379
+
+# JWT Configuration
+JWT_SECRET=your-local-jwt-secret-key-for-development-only
+JWT_EXPIRES_IN=7d
+
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-openai-key-here
+
+# Reddit Configuration (Optional)
+REDDIT_CLIENT_ID=your-reddit-client-id
+REDDIT_CLIENT_SECRET=your-reddit-client-secret
+REDDIT_USER_AGENT=lawn_analyzer_dev_v1.0
+
+# Local file storage (images stored locally)
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE=10485760
+```
+
+#### 4. Start Local Services with Docker
+
+**Create docker-compose.dev.yml:**
+```yaml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: lawnanalyzer_dev
+      POSTGRES_USER: lawnanalyzer
+      POSTGRES_PASSWORD: password123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+```
+
+**Start the services:**
+```bash
+# Start PostgreSQL and Redis
+docker-compose -f docker-compose.dev.yml up -d
+
+# Verify services are running
+docker-compose -f docker-compose.dev.yml ps
+```
+
+#### 5. Set Up Local Database
+```bash
+# Navigate to server directory
+cd server
+
+# Generate Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev --name init
+
+# Optional: Seed with sample data
+npm run seed
+
+# View database in browser (optional)
+npx prisma studio
+```
+
+#### 6. Start Development Servers
+
+**Terminal 1 - Backend API:**
+```bash
+cd server
+npm run dev
+
+# Should show:
+# 🚀 Server running on port 3001
+# 📊 Health check: http://localhost:3001/health
+```
+
+**Terminal 2 - Frontend:**
+```bash
+# From project root
+npm run dev
+
+# Should show:
+# ➜  Local:   http://localhost:5173/
+# ➜  Network: use --host to expose
+```
+
+#### 7. Test Local Setup
+
+1. **Open browser to http://localhost:5173**
+2. **Test user registration:**
+   - Create a new account
+   - Verify email/password login works
+
+3. **Test lawn analysis:**
+   - Upload a test lawn image
+   - Fill out the form
+   - Submit for analysis
+   - Verify AI analysis works
+
+4. **Test admin dashboard:**
+   - Go to http://localhost:5173/admin
+   - Login with admin credentials
+   - Test data collection and analysis features
+
+#### 8. Local Development Workflow
+
+**Daily Development:**
+```bash
+# Start services (if not running)
+docker-compose -f docker-compose.dev.yml up -d
+
+# Start backend (Terminal 1)
+cd server && npm run dev
+
+# Start frontend (Terminal 2)
+npm run dev
+
+# Make your changes and test locally
+```
+
+**Database Management:**
+```bash
+# Reset database
+cd server
+npx prisma migrate reset
+
+# Add new migration after schema changes
+npx prisma migrate dev --name your-migration-name
+
+# View data
+npx prisma studio
+```
+
+**Debugging:**
+```bash
+# View backend logs
+cd server && npm run dev
+
+# View database logs
+docker-compose -f docker-compose.dev.yml logs postgres
+
+# View Redis logs
+docker-compose -f docker-compose.dev.yml logs redis
+```
+
+### 🚀 Deploy to Production After Local Testing
+
+Once everything works locally, follow the production deployment steps below:
+
+1. **Test thoroughly locally first**
+2. **Commit your changes to Git**
+3. **Follow the AWS deployment guide**
+4. **Update production environment variables**
+5. **Deploy and test in production**
+
+---
+
 ## 📋 Prerequisites
 
 Before starting, you'll need:

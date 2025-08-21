@@ -8,7 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:local": "vite --host 0.0.0.0 --port 5173"
+    "dev:local": "vite --host 0.0.0.0 --port 5173",
+    "dev:setup": "docker-compose -f docker-compose.dev.yml up -d",
+    "dev:teardown": "docker-compose -f docker-compose.dev.yml down",
+    "dev:reset": "docker-compose -f docker-compose.dev.yml down -v && docker-compose -f docker-compose.dev.yml up -d"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
