@@ -98,7 +98,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           {!isLogin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+                Name
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -108,7 +108,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                   value={formData.name}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Enter your full name"
+                  placeholder="Enter your name"
                   required={!isLogin}
                 />
               </div>
@@ -117,17 +117,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
+              {isLogin ? 'Username' : 'Email Address'}
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              {isLogin ? (
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              ) : (
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              )}
               <input
-                type="email"
-                name="email"
-                value={formData.email}
+                type={isLogin ? "text" : "email"}
+                name="username"
+                value={formData.username}
                 onChange={handleInputChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Enter your email"
+                placeholder={isLogin ? "Enter username (Jletz14)" : "Enter your email"}
                 required
               />
             </div>
@@ -204,7 +208,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
                 setIsLogin(!isLogin);
                 setError('');
                 setFormData({
-                  email: '',
+                  username: '',
                   password: '',
                   name: '',
                   confirmPassword: ''
