@@ -15,6 +15,7 @@ model User {
   password_hash     String
   role              Role     @default(USER)
   subscription_tier Tier     @default(FREE)
+  image_upload_count Int     @default(0)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 

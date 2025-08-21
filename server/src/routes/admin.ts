@@ -20,14 +20,29 @@ router.get('/stats', async (req: AuthenticatedRequest, res) => {
       pendingReviews,
       redditPosts,
       analyzedPosts,
-      categorySuggestions
+      categorySuggestions,
+      userStats
     ] = await Promise.all([
       prisma.user.count(),
       prisma.submission.count(),
       prisma.submission.count({ where: { flagged_for_review: true } }),
       prisma.redditPost.count(),
       prisma.redditAnalysis.count(),
-      prisma.categorySuggestion.count({ where: { status: 'PENDING' } })
+      prisma.categorySuggestion.count({ where: { status: 'PENDING' } }),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          image_upload_count: true,
+          created_at: true,
+          _count: {
+            select: { submissions: true }
+          }
+        },
+        orderBy: { image_upload_count: 'desc' },
+        take: 10
+      })
     ]);
 
     // Get recent activity
@@ -54,7 +69,8 @@ router.get('/stats', async (req: AuthenticatedRequest, res) => {
           analyzedPosts,
           categorySuggestions
         },
-        recentActivity: recentSubmissions
+        recentActivity: recentSubmissions,
+        topUsers: userStats
       }
     });
   } catch (error) {
@@ -77,7 +93,7 @@ router.get('/submissions', async (req: AuthenticatedRequest, res) => {
         orderBy: { created_at: 'desc' },
         include: {
           user: {
-            select: { id: true, email: true, name: true }
+            select: { id: true, email: true, name: true, image_upload_count: true }
           }
         }
       }),

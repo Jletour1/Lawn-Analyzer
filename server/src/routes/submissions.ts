@@ -65,6 +65,18 @@ router.post('/', upload.single('image'), [
       }
     });
 
+    // Increment user's image upload count
+    if (req.user?.id) {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: {
+          image_upload_count: {
+            increment: 1
+          }
+        }
+      });
+    }
+
     // Trigger AI analysis
     try {
       const analysisResult = await analyzeSubmission(submission);
