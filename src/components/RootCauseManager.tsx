@@ -1111,13 +1111,22 @@ const RootCauseManager: React.FC = () => {
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-medium text-white mb-3">{showAIDocumentation.name}</h4>
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="text-gray-400">Category:</span>
                       <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getCategoryColor(showAIDocumentation.category)}`}>
                         {showAIDocumentation.category}
                       </span>
+                        <button
+                          onClick={() => handleEditSchedule(schedule)}
+                          className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <span className="text-gray-400">Confidence:</span>
