@@ -2429,3 +2429,5 @@ const Thumb: React.FC<{ src: string; alt?: string; onClick: () => void }> = ({ s
 export default UnifiedAdminDashboard;
 
 export default titleColor
+
+export default titleColor
