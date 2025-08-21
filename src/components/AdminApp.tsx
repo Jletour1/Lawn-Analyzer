@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useEffect } from 'react';
 import AdminHeader from './AdminHeader';
-import AdminDashboard from './AdminDashboard';
+import UnifiedAdminDashboard from './UnifiedAdminDashboard';
 import DataCollection from './DataCollection';
 import AIAnalysis from './AIAnalysis';
 import RootCauseManager from './RootCauseManager';
@@ -169,7 +169,7 @@ const AdminApp: React.FC = () => {
     switch (activeTab) {
       case 'dashboard':
           console.log('AdminApp: Rendering AdminDashboard');
-        return <AdminDashboard onTabChange={setActiveTab} />;
+        return <UnifiedAdminDashboard />;
       case 'collection':
           console.log('AdminApp: Rendering DataCollection');
         return <DataCollection />;
