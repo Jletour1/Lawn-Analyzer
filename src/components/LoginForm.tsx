@@ -215,16 +215,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           </p>
         </div>
 
-        {/* Demo credentials for development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 text-center">
-              <strong>Demo Credentials:</strong><br />
-              Email: <code className="bg-gray-200 px-1 rounded">demo@lawnanalyzer.com</code><br />
-              Password: <code className="bg-gray-200 px-1 rounded">demo123</code>
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

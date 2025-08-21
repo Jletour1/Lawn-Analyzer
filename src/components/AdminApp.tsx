@@ -75,13 +75,13 @@ const AdminApp: React.FC = () => {
 
     console.log('Login attempt:', { username, password: password ? '[PROVIDED]' : '[EMPTY]' });
 
-    if (username === 'admin' && password === 'admin123') {
+    if (username === 'jletz14' && password === 'Fanduel01') {
       localStorage.setItem('isAdminAuthenticated', 'true');
       setIsAuthenticated(true);
       console.log('Login successful');
     } else {
       console.log('Login failed - invalid credentials');
-      alert(`Invalid credentials. Use username: admin, password: admin123\nYou entered: "${username}" / "${password}"`);
+      alert(`Invalid credentials.\nYou entered: "${username}" / "${password}"`);
     }
   };
 
@@ -154,9 +154,8 @@ const AdminApp: React.FC = () => {
 
           <div className="mt-8 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 text-center">
-              <strong>Demo Credentials:</strong><br />
-              Username: <code className="bg-gray-200 px-1 rounded">admin</code><br />
-              Password: <code className="bg-gray-200 px-1 rounded">admin123</code>
+              <strong>Admin Access:</strong><br />
+              Contact administrator for credentials
             </p>
           </div>
         </div>

@@ -6,29 +6,16 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 12);
+  // Create production admin user
+  const adminPassword = await bcrypt.hash('Fanduel01', 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@lawnanalyzer.com' },
+    where: { email: 'Jletz14' },
     update: {},
     create: {
-      email: 'admin@lawnanalyzer.com',
-      name: 'Admin User',
+      email: 'Jletz14',
+      name: 'Administrator',
       password_hash: adminPassword,
       role: 'ADMIN'
-    }
-  });
-
-  // Create demo user
-  const demoPassword = await bcrypt.hash('demo123', 12);
-  const demoUser = await prisma.user.upsert({
-    where: { email: 'demo@lawnanalyzer.com' },
-    update: {},
-    create: {
-      email: 'demo@lawnanalyzer.com',
-      name: 'Demo User',
-      password_hash: demoPassword,
-      role: 'USER'
     }
   });
 
@@ -157,8 +144,7 @@ async function main() {
   }
 
   console.log('✅ Database seeded successfully');
-  console.log(`👤 Admin user: admin@lawnanalyzer.com / admin123`);
-  console.log(`👤 Demo user: demo@lawnanalyzer.com / demo123`);
+  console.log(`👤 Admin user: Jletz14 / Fanduel01`);
   console.log(`🌿 Created ${rootCauses.length} root causes with treatment schedules`);
 }
 

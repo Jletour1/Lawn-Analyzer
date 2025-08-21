@@ -69,7 +69,7 @@ export const sendNotificationEmail = async (
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                Thank you for using Lawn Analyzer! 
+                Thank you for using our Lawn Analysis service! 
                 <a href="${process.env.FRONTEND_URL}" style="color: #10b981;">Analyze another photo</a>
               </p>
             </div>
@@ -116,7 +116,7 @@ export const sendAdminAlert = async (
           
           <div style="margin-top: 30px; text-align: center;">
             <a href="${process.env.FRONTEND_URL}/admin" 
-               style="background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+               style="background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
               View Admin Dashboard
             </a>
           </div>
