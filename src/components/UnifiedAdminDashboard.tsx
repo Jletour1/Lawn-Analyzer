@@ -31,7 +31,8 @@ import {
   Plus,
   Filter,
   AlertTriangle,
-  Brain
+  Brain,
+  Leaf
 } from 'lucide-react';
 import { LawnAnalysis, ProductMention, CollectionStats, UserDiagnostic } from '../types';
 
@@ -316,6 +317,11 @@ const UnifiedAdminDashboard: React.FC = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Add logout logic here
+    navigate('/');
+  };
 
   /* ---------------------- Load data ---------------------- */
   useEffect(() => {
@@ -1000,7 +1006,96 @@ const UnifiedAdminDashboard: React.FC = () => {
 
   /* ---------------------- Render ---------------------- */
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gray-100">
+      {/* Admin Navigation Header */}
+      <header className="bg-gray-900 shadow-sm border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center justify-center w-10 h-10 bg-green-600 rounded-lg">
+                <Leaf className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Lawn Analyzer Admin</h1>
+                <p className="text-xs text-gray-400">AI-Powered Lawn Diagnostics</p>
+              </div>
+            </div>
+            
+            <nav className="flex space-x-1">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'overview'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Dashboard</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('reddit')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'reddit'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <Database className="w-4 h-4" />
+                <span>Data Collection</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('user-submissions')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'user-submissions'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>AI Analysis</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('email-collection')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'email-collection'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>Root Causes</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Category Suggestions</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+              >
+                <Brain className="w-4 h-4" />
+                <span>Smart Engine</span>
+              </button>
+            </nav>
+            
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         <StatCard
@@ -2199,6 +2294,8 @@ const UnifiedAdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+        </div>
+      </main>
     </div>
   );
 };
