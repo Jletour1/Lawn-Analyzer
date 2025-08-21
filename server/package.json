@@ -1,16 +1,14 @@
 {
-  "name": "lawn-analyzer-server",
+  "name": "lawn-diagnostic-server",
   "version": "1.0.0",
-  "description": "Backend server for Lawn Analyzer",
-  "main": "dist/index.js",
+  "description": "Backend server for lawn diagnostic app",
+  "main": "src/index.js",
   "scripts": {
     "dev": "node src/index.js",
-    "start": "node src/index.js",
-    "build": "echo 'Build complete'"
+    "start": "node src/index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5"
-  },
-  "type": "module"
+  }
 }

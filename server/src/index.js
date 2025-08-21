@@ -1,8 +1,8 @@
-import express from 'express';
-import cors from 'cors';
+const express = require('express');
+const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 
 // Middleware
 app.use(cors({
@@ -11,23 +11,21 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Routes
+// Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Lawn Analyzer API Server',
-    version: '1.0.0',
-    status: 'running'
+    message: 'Lawn Diagnostic API Server',
+    status: 'running',
+    port: PORT
   });
 });
 
+// Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Auth routes
+// Auth endpoints
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   
@@ -46,15 +44,11 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-app.post('/api/auth/register', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Registration successful'
-  });
+app.post('/api/auth/logout', (req, res) => {
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`Server running on port ${PORT}`);
 });
