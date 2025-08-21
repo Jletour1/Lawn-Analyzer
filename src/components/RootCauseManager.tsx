@@ -81,6 +81,23 @@ const RootCauseManager: React.FC = () => {
     products: []
   });
 
+  const [editingSchedule, setEditingSchedule] = useState<any>(null);
+  const [showEditScheduleForm, setShowEditScheduleForm] = useState(false);
+
+  const handleEditSchedule = (schedule: any) => {
+    setEditingSchedule(schedule);
+    setScheduleFormData({
+      name: schedule.name,
+      description: schedule.description,
+      total_duration: schedule.total_duration,
+      difficulty_level: schedule.difficulty_level,
+      steps: schedule.steps,
+      success_indicators: schedule.success_indicators
+    });
+    setShowEditScheduleForm(true);
+    setSelectedRootCause(null);
+  };
+
   useEffect(() => {
     loadData();
     loadAvailableCategories();
@@ -128,6 +145,28 @@ const RootCauseManager: React.FC = () => {
   useEffect(() => {
     applyFilters();
   }, [rootCauses, filters]);
+
+  const loadRootCauses = () => {
+    const localData = getLocalData();
+    const rootCausesData = (localData.root_causes || [])
+      .filter(item => item != null && (item.id || item.name))
+      .map(item => ({
+        ...item,
+        id: item.id || `rc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        visual_indicators: item.visual_indicators || [],
+        standard_solutions: item.standard_solutions || [],
+        standard_recommendations: item.standard_recommendations || [],
+        products: item.products || [],
+        confidence_threshold: item.confidence_threshold ?? 0.7,
+        success_rate: item.success_rate ?? 0.8,
+        case_count: item.case_count ?? 0,
+        seasonal_factors: item.seasonal_factors || [],
+        created_at: item.created_at || new Date().toISOString(),
+        updated_at: item.updated_at || new Date().toISOString()
+      }));
+
+    setRootCauses(rootCausesData);
+  };
 
   const loadData = () => {
     const localData = getLocalData();
