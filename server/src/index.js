@@ -5,19 +5,12 @@ const app = express();
 const PORT = 3001;
 
 // Middleware
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Lawn Diagnostic API Server',
-    status: 'running',
-    port: PORT
-  });
+  res.json({ message: 'Lawn Diagnostic API Server', status: 'running' });
 });
 
 // Health check
@@ -29,18 +22,14 @@ app.get('/health', (req, res) => {
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   
-  // Simple hardcoded auth for testing
   if (username === 'Jletz14' && password === 'Fanduel01') {
-    res.json({
-      success: true,
+    res.json({ 
+      success: true, 
       user: { username: 'Jletz14', role: 'admin' },
       token: 'mock-jwt-token'
     });
   } else {
-    res.status(401).json({
-      success: false,
-      message: 'Invalid credentials'
-    });
+    res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 });
 
